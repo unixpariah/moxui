@@ -23,6 +23,7 @@ pub struct WgpuCtx<'window> {
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
+    tree: tree::Tree,
 }
 
 impl<'window> WgpuCtx<'window> {
@@ -44,12 +45,23 @@ impl<'window> WgpuCtx<'window> {
         let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
         surface.configure(&device, &surface_config);
 
-        let projection_uniform = buffers::ProjectionUniform::new(&device, 0.0, 1920.0, 0.0, 1080.0);
+        let mut tree = tree::Tree::new(
+            &device,
+            rectangle::Rectangle::default()
+                .set_size(surface_config.width as f32, surface_config.height as f32)
+                .set_background_color(0.0, 0.0, 0.0, 0.0),
+        );
+
+        tree.add_child(
+            rectangle::Rectangle::default()
+                .set_size(100.0, 100.0)
+                .set_background_color(0.0, 1.0, 0.0, 1.0),
+        );
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&projection_uniform.bind_group_layout],
+                bind_group_layouts: &tree.bind_group_layouts(),
                 push_constant_ranges: &[],
             });
 
@@ -118,6 +130,7 @@ impl<'window> WgpuCtx<'window> {
         });
 
         WgpuCtx {
+            tree,
             surface,
             surface_config,
             adapter,
@@ -134,7 +147,7 @@ impl<'window> WgpuCtx<'window> {
         self.surface.configure(&self.device, &self.surface_config);
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&self) {
         let surface_texture = self
             .surface
             .get_current_texture()
@@ -161,11 +174,7 @@ impl<'window> WgpuCtx<'window> {
         });
         rpass.set_pipeline(&self.render_pipeline);
 
-        let surface = rectangle::Rectangle::default()
-            .set_size(200.0, 200.0)
-            .set_background_color(1.0, 0.0, 0.0, 1.0);
-        let tree = tree::Tree::new(&self.device, surface);
-        tree.render(&self.device, &mut rpass);
+        self.tree.render(&self.device, &mut rpass);
 
         drop(rpass);
 
@@ -207,7 +216,7 @@ impl<'window> ApplicationHandler for App<'window> {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if let Some(wgpu_ctx) = self.wgpu_ctx.as_mut() {
+                if let Some(wgpu_ctx) = &self.wgpu_ctx {
                     wgpu_ctx.draw();
                 }
             }

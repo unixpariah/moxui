@@ -1,43 +1,58 @@
 use crate::{buffers, rectangle};
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    rc::Rc,
+};
 
 pub struct Tree {
-    projection: buffers::ProjectionUniform,
+    projection_uniform: buffers::ProjectionUniform,
+    index_buffer: buffers::IndexBuffer,
+    generic_rect: buffers::VertexBuffer,
     node: Node,
 }
 
 impl Tree {
-    pub fn new(device: &wgpu::Device, rectangle: rectangle::Rectangle) -> Self {
+    pub fn new(device: &wgpu::Device, surface: rectangle::Rectangle) -> Self {
+        let extents = surface.get_extents();
+        let projection_uniform = buffers::ProjectionUniform::new(
+            device,
+            extents.x,
+            extents.x + extents.width,
+            extents.y,
+            extents.y + extents.height,
+        );
+
         Self {
-            projection: buffers::ProjectionUniform::new(&device, 0.0, 1920.0, 0.0, 1080.0),
-            node: Node::new(rectangle),
+            index_buffer: buffers::IndexBuffer::new(device, &[0, 1, 3, 1, 2, 3]),
+            generic_rect: buffers::VertexBuffer::new(
+                device,
+                &[
+                    buffers::Vertex {
+                        position: [0.0, 1.0],
+                    },
+                    buffers::Vertex {
+                        position: [1.0, 1.0],
+                    },
+                    buffers::Vertex {
+                        position: [1.0, 0.0],
+                    },
+                    buffers::Vertex {
+                        position: [0.0, 0.0],
+                    },
+                ],
+            ),
+            projection_uniform,
+            node: Node::new(surface),
         }
     }
 
+    pub fn bind_group_layouts(&self) -> Rc<[&wgpu::BindGroupLayout]> {
+        Rc::new([&self.projection_uniform.bind_group_layout])
+    }
+
     pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
-        let indices: &[u16] = &[0, 1, 3, 1, 2, 3];
-        let index_buffer = buffers::IndexBuffer::new(&device, indices);
-
-        let rect_buf = buffers::VertexBuffer::new(
-            &device,
-            &[
-                buffers::Vertex {
-                    position: [0.0, 1.0],
-                },
-                buffers::Vertex {
-                    position: [1.0, 1.0],
-                },
-                buffers::Vertex {
-                    position: [1.0, 0.0],
-                },
-                buffers::Vertex {
-                    position: [0.0, 0.0],
-                },
-            ],
-        );
-
-        render_pass.set_bind_group(0, &self.projection.bind_group, &[]);
-        render_pass.set_vertex_buffer(0, rect_buf.slice(..));
+        render_pass.set_bind_group(0, &self.projection_uniform.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.generic_rect.slice(..));
 
         let mut instances = Vec::new();
         self.collect_instances(&mut instances);
@@ -45,9 +60,9 @@ impl Tree {
         let instance_buffer = buffers::InstanceBuffer::new(device, &instances);
         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
 
-        render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
-        render_pass.draw_indexed(0..index_buffer.size(), 0, 0..instance_buffer.size());
+        render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..instance_buffer.size());
     }
 }
 
