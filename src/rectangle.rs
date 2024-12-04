@@ -1,9 +1,3 @@
-mod border;
-mod filter;
-mod image;
-mod outline;
-mod transform;
-
 use crate::buffers;
 
 #[derive(PartialEq)]
@@ -13,12 +7,12 @@ pub enum BoxSizing {
 }
 
 #[derive(Default)]
-struct BoxShadow {
-    x_offset: f32,
-    y_offset: f32,
-    softness: f32,
-    color: [f32; 4],
-    inset: bool,
+pub struct BoxShadow {
+    pub x_offset: f32,
+    pub y_offset: f32,
+    pub softness: f32,
+    pub color: [f32; 4],
+    pub inset: bool,
 }
 
 #[derive(Default)]
@@ -35,43 +29,122 @@ impl PaddingSize {
     }
 }
 
-// Feature Parity
-// Name             | Implemented by Struct | Implemented by Shader
-// -----------------|-----------------------|-----------------------
-// x                 | [x]                   | [x]
-// y                 | [x]                   | [x]
-// width             | [x]                   | [x]
-// height            | [x]                   | [x]
-// bg-color          | [x]                   | [x]
-// bg-image          | [ ]                   | [ ]
-// box-sizing        | [x]                   | [x]
-// padding           | [x]                   | [x]
-// border            | [x]                   | [x]
-// box-shadow        | [x]                   | [ ]
-// outline           | [x]                   | [x]
+pub enum BorderStyle {
+    None,
+    Solid,
+    Dotted,
+    Dashed,
+    Double,
+    Groove,
+    Ridge,
+    Inset,
+    Outset,
+    Hidden,
+}
+
+#[derive(Default)]
+pub struct BorderRadius {
+    pub top_left: f32,
+    pub top_right: f32,
+    pub bottom_left: f32,
+    pub bottom_right: f32,
+}
+
+impl BorderRadius {
+    pub fn to_array(&self) -> [f32; 4] {
+        [
+            self.top_left,
+            self.top_right,
+            self.bottom_left,
+            self.bottom_right,
+        ]
+    }
+}
+
+#[derive(Default)]
+pub struct BorderSize {
+    pub top: f32,
+    pub right: f32,
+    pub bottom: f32,
+    pub left: f32,
+}
+
+impl BorderSize {
+    pub fn to_array(&self) -> [f32; 4] {
+        [self.top, self.right, self.bottom, self.left]
+    }
+}
+
+pub struct Border {
+    pub radius: BorderRadius,
+    pub size: BorderSize,
+    pub color: [f32; 4],
+    pub style: BorderStyle,
+}
+
+impl Default for Border {
+    fn default() -> Self {
+        Self {
+            radius: BorderRadius::default(),
+            color: [0.0, 0.0, 0.0, 0.0],
+            size: BorderSize::default(),
+            style: BorderStyle::Solid,
+        }
+    }
+}
+
 pub struct Rectangle {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    background_color: [f32; 4],
-    padding: PaddingSize,
-    box_sizing: BoxSizing,
-    border: border::Border,
-    outline: outline::Outline,
-    box_shadow: BoxShadow,
-    blur: f32,
-    brightness: f32,
-    contrast: f32,
-    grayscale: f32,
-    hue_rotate: f32,
-    invert: f32,
-    saturate: f32,
-    sepia: f32,
-    scale: [f32; 2],
-    rotate: f32,
-    skew: [f32; 2],
-    translate: [f32; 2],
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub background_color: [f32; 4],
+    pub padding: PaddingSize,
+    pub box_sizing: BoxSizing,
+    pub border: Border,
+    pub outline: Outline,
+    pub box_shadow: BoxShadow,
+    pub blur: f32,
+    pub brightness: f32,
+    pub contrast: f32,
+    pub grayscale: f32,
+    pub hue_rotate: f32,
+    pub invert: f32,
+    pub saturate: f32,
+    pub sepia: f32,
+    pub scale: [f32; 2],
+    pub rotate: f32,
+    pub skew: [f32; 2],
+    pub translate: [f32; 2],
+}
+
+pub enum OutlineStyle {
+    None,
+    Solid,
+    Dotted,
+    Dashed,
+    Double,
+    Groove,
+    Ridge,
+    Hidden,
+}
+
+pub struct Outline {
+    pub width: f32,
+    pub color: [f32; 4],
+    pub style: OutlineStyle,
+    pub offset: f32,
+}
+
+impl Default for Outline {
+    fn default() -> Self {
+        Self {
+            color: [0.0, 0.0, 0.0, 0.0],
+            width: 0.0,
+            style: OutlineStyle::Solid,
+            offset: 0.0,
+        }
+    }
 }
 
 pub struct Extents {
@@ -82,55 +155,6 @@ pub struct Extents {
 }
 
 impl Rectangle {
-    pub fn set_coordinates(mut self, x: f32, y: f32) -> Self {
-        self.x = x;
-        self.y = y;
-        self
-    }
-
-    pub fn set_boxshadow_offset(mut self, x_offset: f32, y_offset: f32) -> Self {
-        self.box_shadow.x_offset = x_offset;
-        self.box_shadow.y_offset = y_offset;
-        self
-    }
-
-    pub fn set_boxshadow_softness(mut self, softness: f32) -> Self {
-        self.box_shadow.softness = softness;
-        self
-    }
-
-    pub fn set_boxshadow_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
-        self.box_shadow.color = [r, g, b, a];
-        self
-    }
-
-    pub fn set_size(mut self, width: f32, height: f32) -> Self {
-        self.width = width;
-        self.height = height;
-        self
-    }
-
-    pub fn set_box_sizing(mut self, box_sizing: BoxSizing) -> Self {
-        self.box_sizing = box_sizing;
-        self
-    }
-
-    pub fn set_padding(mut self, top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        self.padding = PaddingSize {
-            top,
-            right,
-            bottom,
-            left,
-        };
-        self
-    }
-
-    pub fn set_background_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
-        self.background_color = [r, g, b, a];
-        self
-    }
-
-    // Getter for extents
     pub fn get_extents(&self) -> Extents {
         let (width, height) = match self.box_sizing {
             BoxSizing::ContentBox => (
@@ -200,8 +224,8 @@ impl Default for Rectangle {
             height: 1.0,
             padding: PaddingSize::default(),
             background_color: [0.0, 0.0, 0.0, 0.0],
-            border: border::Border::default(),
-            outline: outline::Outline::default(),
+            border: Border::default(),
+            outline: Outline::default(),
             box_sizing: BoxSizing::ContentBox,
             box_shadow: BoxShadow::default(),
             brightness: 0.0,

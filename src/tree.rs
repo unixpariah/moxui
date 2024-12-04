@@ -1,3 +1,5 @@
+mod node;
+
 use crate::{buffers, rectangle};
 use std::{
     ops::{Deref, DerefMut},
@@ -5,6 +7,7 @@ use std::{
 };
 
 pub struct Tree {
+    shader: wgpu::ShaderModule,
     projection_uniform: buffers::ProjectionUniform,
     index_buffer: buffers::IndexBuffer,
     generic_rect: buffers::VertexBuffer,
@@ -12,8 +15,13 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn new(device: &wgpu::Device, surface: rectangle::Rectangle) -> Self {
-        let extents = surface.get_extents();
+    pub fn new<F>(device: &wgpu::Device, f: F) -> Self
+    where
+        F: Fn(Node) -> Node,
+    {
+        let node = f(Node::new());
+
+        let extents = node.data.get_extents();
         let projection_uniform = buffers::ProjectionUniform::new(
             device,
             extents.x,
@@ -23,6 +31,7 @@ impl Tree {
         );
 
         Self {
+            shader: device.create_shader_module(wgpu::include_wgsl!("shader.wgsl")),
             index_buffer: buffers::IndexBuffer::new(device, &[0, 1, 3, 1, 2, 3]),
             generic_rect: buffers::VertexBuffer::new(
                 device,
@@ -42,12 +51,20 @@ impl Tree {
                 ],
             ),
             projection_uniform,
-            node: Node::new(surface),
+            node,
         }
     }
 
     pub fn bind_group_layouts(&self) -> Rc<[&wgpu::BindGroupLayout]> {
         Rc::new([&self.projection_uniform.bind_group_layout])
+    }
+
+    pub fn buffer_layouts() -> Rc<[wgpu::VertexBufferLayout<'static>]> {
+        Rc::new([buffers::Vertex::desc(), buffers::Instance::desc()])
+    }
+
+    pub fn shader_module(&self) -> &wgpu::ShaderModule {
+        &self.shader
     }
 
     pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
@@ -84,21 +101,34 @@ pub struct Node {
     pub data: rectangle::Rectangle,
 }
 
+impl Deref for Node {
+    type Target = rectangle::Rectangle;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for Node {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
 impl Node {
-    pub fn new(rectangle: rectangle::Rectangle) -> Self {
+    pub fn new() -> Self {
         return Self {
-            data: rectangle,
+            data: rectangle::Rectangle::default(),
             children: Vec::new(),
         };
     }
 
-    pub fn add_child(&mut self, rectangle: rectangle::Rectangle) {
-        let node = Node {
-            data: rectangle,
-            children: Vec::new(),
-        };
-
+    pub fn add_child<F>(mut self, f: F) -> Self
+    where
+        F: Fn(Node) -> Node,
+    {
+        let node = f(Node::new());
         self.children.push(node);
+        self
     }
 
     fn collect_instances(&self, instances: &mut Vec<buffers::Instance>) {

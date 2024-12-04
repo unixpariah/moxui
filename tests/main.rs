@@ -1,4 +1,6 @@
-use gui_lib::{buffers, rectangle, tree};
+mod setup;
+
+use setup::WgpuCtx;
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
@@ -16,137 +18,7 @@ fn main() -> Result<(), EventLoopError> {
     event_loop.run_app(&mut app)
 }
 
-pub struct WgpuCtx<'window> {
-    surface: wgpu::Surface<'window>,
-    surface_config: wgpu::SurfaceConfiguration,
-    adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    render_pipeline: wgpu::RenderPipeline,
-    tree: tree::Tree,
-}
-
 impl<'window> WgpuCtx<'window> {
-    pub fn new(window: Arc<Window>) -> WgpuCtx<'window> {
-        let instance = wgpu::Instance::default();
-        let surface = instance.create_surface(Arc::clone(&window)).unwrap();
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            compatible_surface: Some(&surface),
-            ..Default::default()
-        }))
-        .expect("Failed to find suitable adapter");
-
-        let (device, queue) = pollster::block_on(adapter.request_device(&Default::default(), None))
-            .expect("Failed to request device");
-
-        let size = window.inner_size();
-        let width = size.width.max(1);
-        let height = size.height.max(1);
-        let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
-        surface.configure(&device, &surface_config);
-
-        let mut tree = tree::Tree::new(
-            &device,
-            rectangle::Rectangle::default()
-                .set_size(surface_config.width as f32, surface_config.height as f32)
-                .set_background_color(0.0, 0.0, 0.0, 0.0),
-        );
-
-        tree.add_child(
-            rectangle::Rectangle::default()
-                .set_size(100.0, 100.0)
-                .set_background_color(0.0, 1.0, 0.0, 1.0),
-        );
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &tree.bind_group_layouts(),
-                push_constant_ranges: &[],
-            });
-
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
-
-        let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .find(|f| f.is_srgb())
-            .unwrap_or(&surface_caps.formats[0]);
-
-        let alpha_mode = surface_caps
-            .alpha_modes
-            .iter()
-            .find(|a| **a == wgpu::CompositeAlphaMode::PreMultiplied)
-            .unwrap_or(&surface_caps.alpha_modes[0]);
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: *surface_format,
-            width: 1,
-            height: 1,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: *alpha_mode,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[buffers::Vertex::desc(), buffers::Instance::desc()],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            depth_stencil: None,
-            multiview: None,
-            cache: None,
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-        });
-
-        WgpuCtx {
-            tree,
-            surface,
-            surface_config,
-            adapter,
-            device,
-            queue,
-            render_pipeline,
-        }
-    }
-
-    pub fn resize(&mut self, new_size: (u32, u32)) {
-        let (width, height) = new_size;
-        self.surface_config.width = width.max(1);
-        self.surface_config.height = height.max(1);
-        self.surface.configure(&self.device, &self.surface_config);
-    }
-
     pub fn draw(&self) {
         let surface_texture = self
             .surface
@@ -193,7 +65,6 @@ impl<'window> ApplicationHandler for App<'window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
             let win_attr = Window::default_attributes().with_title("wgpu winit example");
-            // use Arc.
             let window = Arc::new(
                 event_loop
                     .create_window(win_attr)
