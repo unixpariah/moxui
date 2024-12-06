@@ -5,22 +5,16 @@ use super::Node;
 // Name              | Implemented by Struct | Implemented by Shader
 // ------------------|-----------------------|-----------------------
 // opacity           | [x]                   | [x]
-// blur              | [x]                   | [ ]
+// blur              | [ ]                   | [ ]
 // brightness        | [x]                   | [x]
 // contrast          | [x]                   | [x]
 // grayscale         | [x]                   | [x]
 // invert            | [x]                   | [x]
-// sepia             | [x]                   | [ ]
+// sepia             | [x]                   | [x]
 // saturate          | [x]                   | [x]
 // hue-rotate        | [x]                   | [ ]
 
 impl Node {
-    pub fn set_coordinates(mut self, x: f32, y: f32) -> Self {
-        self.x = x;
-        self.y = y;
-        self
-    }
-
     pub fn set_boxshadow_offset(mut self, x_offset: f32, y_offset: f32) -> Self {
         self.box_shadow.x_offset = x_offset;
         self.box_shadow.y_offset = y_offset;
@@ -49,7 +43,7 @@ impl Node {
     }
 
     pub fn set_padding(mut self, top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        self.padding = rectangle::PaddingSize {
+        self.padding = rectangle::Spacing {
             top,
             right,
             bottom,
@@ -60,6 +54,16 @@ impl Node {
 
     pub fn set_background_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         self.background_color = [r, g, b, a];
+        self
+    }
+
+    pub fn set_margin(mut self, top: f32, right: f32, bottom: f32, left: f32) -> Self {
+        self.margin = rectangle::Spacing {
+            top,
+            right,
+            bottom,
+            left,
+        };
         self
     }
 
@@ -126,11 +130,6 @@ impl Node {
 
     pub fn set_opacity(mut self, opacity: f32) -> Self {
         self.background_color[3] = opacity;
-        self
-    }
-
-    pub fn set_blur(mut self, blur: f32) -> Self {
-        self.blur = blur;
         self
     }
 

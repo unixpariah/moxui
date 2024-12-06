@@ -29,6 +29,7 @@ struct VertexOutput {
     // invert: f32,
     @location(9) grayscale: f32,
     @location(10) sepia: f32,
+    @location(11) hue_rotate: f32,
 };
 
 struct InstanceInput {
@@ -52,6 +53,7 @@ struct InstanceInput {
     @location(12) translate: vec2<f32>,
     @location(13) skew: vec2<f32>,
     @location(14) sepia: f32,
+    @location(15) hue_rotate: f32,
 }
 
 fn rotation_matrix(angle: f32) -> mat2x2<f32> {
@@ -110,6 +112,7 @@ fn vs_main(
     out.filters = instance.filters;
     out.grayscale = instance.grayscale;
     out.sepia = instance.sepia;
+    out.hue_rotate = instance.hue_rotate;
 
     return out;
 }
@@ -161,6 +164,24 @@ fn saturation_matrix(saturation: f32) -> mat4x4<f32> {
         vec4<f32>(green, 0.0),
         vec4<f32>(blue, 0.0),
         vec4<f32>(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+fn sepia(color: vec3<f32>, sepia: f32) -> vec3<f32> {
+    let sepia_matrix = vec3<f32>(
+        dot(color.rgb, vec3<f32>(0.393, 0.769, 0.189)),
+        dot(color.rgb, vec3<f32>(0.349, 0.686, 0.168)),
+        dot(color.rgb, vec3<f32>(0.272, 0.534, 0.131))
+    );
+
+    return mix(color.rgb, sepia_matrix, sepia);
+}
+
+fn hue_rotate(color: vec3<f32>, angle: f32) -> vec3<f32> {
+    return vec3<f32>(
+        dot(color, vec3<f32>(0.213, 0.715, -0.213)) * (1.0 - cos(angle)) + cos(angle) * color.r + sin(angle) * color.b,
+        dot(color, vec3<f32>(-0.213, 0.715, 0.715)) * (1.0 - cos(angle)) + cos(angle) * color.g + sin(angle) * color.g,
+        dot(color, vec3<f32>(0.272, -0.715, 0.213)) * (1.0 - cos(angle)) + cos(angle) * color.b + sin(angle) * color.r,
     );
 }
 
@@ -227,11 +248,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     color = brightness_matrix(brightness) * contrast_matrix(contrast) * saturation_matrix(saturate) * color;
 
-    let sepia_matrix = vec3<f32>(
-        dot(color.rgb, vec3<f32>(0.393, 0.769, 0.189)),
-        dot(color.rgb, vec3<f32>(0.349, 0.686, 0.168)),
-        dot(color.rgb, vec3<f32>(0.272, 0.534, 0.131))
-    );
-    let sepia = mix(color.rgb, sepia_matrix, in.sepia);
+    let hue_rotate = hue_rotate(color.rgb, in.hue_rotate);
+    let sepia = sepia(hue_rotate, in.sepia);
     return vec4<f32>(mix(sepia, vec3<f32>(1.0) - sepia, invert), color.a);
 }

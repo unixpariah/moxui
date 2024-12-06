@@ -16,17 +16,11 @@ pub struct BoxShadow {
 }
 
 #[derive(Default)]
-pub struct PaddingSize {
+pub struct Spacing {
     pub top: f32,
     pub right: f32,
     pub bottom: f32,
     pub left: f32,
-}
-
-impl PaddingSize {
-    pub fn to_array(&self) -> [f32; 4] {
-        [self.top, self.right, self.bottom, self.left]
-    }
 }
 
 pub enum BorderStyle {
@@ -99,12 +93,12 @@ pub struct Rectangle {
     pub width: f32,
     pub height: f32,
     pub background_color: [f32; 4],
-    pub padding: PaddingSize,
+    pub margin: Spacing,
+    pub padding: Spacing,
     pub box_sizing: BoxSizing,
     pub border: Border,
     pub outline: Outline,
     pub box_shadow: BoxShadow,
-    pub blur: f32,
     pub brightness: f32,
     pub contrast: f32,
     pub grayscale: f32,
@@ -162,19 +156,21 @@ impl Rectangle {
                     + self.padding.left
                     + self.padding.right
                     + self.border.size.left
-                    + self.border.size.right,
+                    + self.border.size.right
+                    + self.margin.right,
                 self.height
                     + self.padding.top
                     + self.padding.bottom
                     + self.border.size.top
-                    + self.border.size.bottom,
+                    + self.border.size.bottom
+                    + self.margin.bottom,
             ),
             BoxSizing::BorderBox => (self.width, self.height),
         };
 
         Extents {
-            x: self.x,
-            y: self.y,
+            x: self.x + self.margin.left,
+            y: self.y + self.margin.top,
             width,
             height,
         }
@@ -187,9 +183,11 @@ impl Rectangle {
 
         let y = extents.y - self.outline.width - self.outline.offset;
 
-        let width = extents.width + (self.outline.width + self.outline.offset) * 2.0;
+        let width =
+            extents.width - self.margin.right + (self.outline.width + self.outline.offset) * 2.0;
 
-        let height = extents.height + (self.outline.width + self.outline.offset) * 2.0;
+        let height =
+            extents.height - self.margin.bottom + (self.outline.width + self.outline.offset) * 2.0;
 
         let bg = self.background_color;
         let oc = self.outline.color;
@@ -210,6 +208,7 @@ impl Rectangle {
             translate: self.translate,
             skew: self.skew,
             sepia: self.sepia,
+            hue_rotate: self.hue_rotate,
         }
     }
 }
@@ -217,12 +216,12 @@ impl Rectangle {
 impl Default for Rectangle {
     fn default() -> Self {
         Self {
-            blur: 0.0,
             x: 0.0,
             y: 0.0,
             width: 1.0,
             height: 1.0,
-            padding: PaddingSize::default(),
+            margin: Spacing::default(),
+            padding: Spacing::default(),
             background_color: [0.0, 0.0, 0.0, 0.0],
             border: Border::default(),
             outline: Outline::default(),

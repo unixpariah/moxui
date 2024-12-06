@@ -6,6 +6,7 @@ use std::ops::{Deref, DerefMut};
 pub struct Tree {
     render_pipeline: wgpu::RenderPipeline,
     projection_uniform: buffers::ProjectionUniform,
+    instance_buffer: buffers::InstanceBuffer,
     index_buffer: buffers::IndexBuffer,
     generic_rect: buffers::VertexBuffer,
     node: Node,
@@ -17,8 +18,8 @@ impl Tree {
         F: Fn(Node) -> Node,
     {
         let node = f(Node::new());
-
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        let mut instances = Vec::new();
+        node.collect_instances(&mut instances);
 
         let projection_uniform = buffers::ProjectionUniform::new(
             device,
@@ -35,13 +36,16 @@ impl Tree {
                 push_constant_ranges: &[],
             });
 
+        let vertex_buffers = [buffers::Vertex::desc(), buffers::Instance::desc()];
+
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[buffers::Vertex::desc(), buffers::Instance::desc()],
+                buffers: &vertex_buffers,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -73,46 +77,46 @@ impl Tree {
             },
         });
 
+        let generic_rect_vertices = [
+            buffers::Vertex {
+                position: [0.0, 1.0],
+            },
+            buffers::Vertex {
+                position: [1.0, 1.0],
+            },
+            buffers::Vertex {
+                position: [1.0, 0.0],
+            },
+            buffers::Vertex {
+                position: [0.0, 0.0],
+            },
+        ];
+
         Self {
             render_pipeline,
             index_buffer: buffers::IndexBuffer::new(device, &[0, 1, 3, 1, 2, 3]),
-            generic_rect: buffers::VertexBuffer::new(
-                device,
-                &[
-                    buffers::Vertex {
-                        position: [0.0, 1.0],
-                    },
-                    buffers::Vertex {
-                        position: [1.0, 1.0],
-                    },
-                    buffers::Vertex {
-                        position: [1.0, 0.0],
-                    },
-                    buffers::Vertex {
-                        position: [0.0, 0.0],
-                    },
-                ],
-            ),
+            generic_rect: buffers::VertexBuffer::new(device, &generic_rect_vertices),
             projection_uniform,
             node,
+            instance_buffer: buffers::InstanceBuffer::new(device, &instances),
         }
     }
 
-    pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
+    pub fn render(&self, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_bind_group(0, &self.projection_uniform.bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.generic_rect.slice(..));
 
-        let mut instances = Vec::new();
-        self.collect_instances(&mut instances);
-
-        let instance_buffer = buffers::InstanceBuffer::new(device, &instances);
-        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
 
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
-        render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..instance_buffer.size());
+        render_pass.draw_indexed(
+            0..self.index_buffer.size(),
+            0,
+            0..self.instance_buffer.size(),
+        );
     }
 }
 
@@ -155,12 +159,31 @@ impl Node {
         };
     }
 
+    pub fn position_children(&mut self) {
+        let extents = self.get_extents();
+        let mut pos = (extents.x, extents.y);
+
+        self.children.iter_mut().for_each(|child| {
+            child.x = pos.0;
+            child.y = pos.1;
+
+            let extents = child.get_extents();
+
+            pos.1 += extents.height;
+
+            child.position_children();
+        })
+    }
+
     pub fn add_child<F>(mut self, f: F) -> Self
     where
         F: Fn(Node) -> Node,
     {
         let node = f(Node::new());
         self.children.push(node);
+
+        self.position_children();
+
         self
     }
 

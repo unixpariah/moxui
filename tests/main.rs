@@ -45,7 +45,7 @@ impl<'window> WgpuCtx<'window> {
             occlusion_query_set: None,
         });
 
-        self.tree.render(&self.device, &mut rpass);
+        self.tree.render(&mut rpass);
 
         drop(rpass);
 
