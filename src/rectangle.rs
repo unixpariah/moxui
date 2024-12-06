@@ -191,25 +191,25 @@ impl Rectangle {
 
         let height = extents.height + (self.outline.width + self.outline.offset) * 2.0;
 
-        // TODO: calculate size of shadow and get max of either outline width + outline.offset or
-        // the calculated shadow (cant just take offset as blurring kind makes it different size)
-
-        let c = self.background_color;
+        let bg = self.background_color;
+        let oc = self.outline.color;
+        let bc = self.border.color;
 
         buffers::Instance {
             dimensions: [x, y, width, height],
-            color: [c[0] * c[3], c[1] * c[3], c[2] * c[3], c[3]], // Premultiply colors
+            color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
             border_radius: self.border.radius.to_array(),
             border_size: self.border.size.to_array(),
-            border_color: self.border.color,
+            border_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
             outline: [self.outline.width, self.outline.offset],
-            outline_color: self.outline.color,
+            outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
             filter: [self.brightness, self.saturate, self.contrast, self.invert],
             grayscale: self.grayscale,
             scale: self.scale,
             rotation: self.rotate,
             translate: self.translate,
             skew: self.skew,
+            sepia: self.sepia,
         }
     }
 }

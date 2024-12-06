@@ -6,6 +6,8 @@
 
 - [ ] **Image Support**  
 
+- [ ] **Backdrop filter**
+
 - [ ] **Text Support**  
 
 - [ ] **Outline Style**  

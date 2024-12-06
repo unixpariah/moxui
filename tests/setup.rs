@@ -9,7 +9,6 @@ pub struct WgpuCtx<'window> {
     adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub render_pipeline: wgpu::RenderPipeline,
     pub tree: tree::Tree,
 }
 
@@ -32,9 +31,8 @@ impl<'window> WgpuCtx<'window> {
         let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
         surface.configure(&device, &surface_config);
 
-        let tree = tree::Tree::new(&device, |surface| {
+        let tree = tree::Tree::new(&device, &surface_config, |surface| {
             surface
-                .set_size(surface_config.width as f32, surface_config.height as f32)
                 .set_background_color(0.0, 0.0, 0.0, 0.0)
                 .add_child(|item| {
                     item.set_background_color(0.0, 0.0, 1.0, 1.0)
@@ -95,75 +93,6 @@ impl<'window> WgpuCtx<'window> {
                 })
         });
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &tree.bind_group_layouts(),
-                push_constant_ranges: &[],
-            });
-
-        let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .find(|f| f.is_srgb())
-            .unwrap_or(&surface_caps.formats[0]);
-
-        let alpha_mode = surface_caps
-            .alpha_modes
-            .iter()
-            .find(|a| **a == wgpu::CompositeAlphaMode::PreMultiplied)
-            .unwrap_or(&surface_caps.alpha_modes[0]);
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: *surface_format,
-            width: 1,
-            height: 1,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: *alpha_mode,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: tree.shader_module(),
-                entry_point: Some("vs_main"),
-                buffers: &tree::Tree::buffer_layouts(),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: tree.shader_module(),
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            depth_stencil: None,
-            multiview: None,
-            cache: None,
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-        });
-
         WgpuCtx {
             tree,
             surface,
@@ -171,7 +100,6 @@ impl<'window> WgpuCtx<'window> {
             adapter,
             device,
             queue,
-            render_pipeline,
         }
     }
 }

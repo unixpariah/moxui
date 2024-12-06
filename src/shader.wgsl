@@ -28,6 +28,7 @@ struct VertexOutput {
     // contrast: f32,
     // invert: f32,
     @location(9) grayscale: f32,
+    @location(10) sepia: f32,
 };
 
 struct InstanceInput {
@@ -50,6 +51,7 @@ struct InstanceInput {
     @location(11) rotation: f32,
     @location(12) translate: vec2<f32>,
     @location(13) skew: vec2<f32>,
+    @location(14) sepia: f32,
 }
 
 fn rotation_matrix(angle: f32) -> mat2x2<f32> {
@@ -107,6 +109,7 @@ fn vs_main(
     out.outline_color = instance.outline_color;
     out.filters = instance.filters;
     out.grayscale = instance.grayscale;
+    out.sepia = instance.sepia;
 
     return out;
 }
@@ -224,5 +227,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     color = brightness_matrix(brightness) * contrast_matrix(contrast) * saturation_matrix(saturate) * color;
 
-    return vec4<f32>(mix(color.rgb, vec3<f32>(1.0) - color.rgb, invert), color.a);
+    let sepia_matrix = vec3<f32>(
+        dot(color.rgb, vec3<f32>(0.393, 0.769, 0.189)),
+        dot(color.rgb, vec3<f32>(0.349, 0.686, 0.168)),
+        dot(color.rgb, vec3<f32>(0.272, 0.534, 0.131))
+    );
+    let sepia = mix(color.rgb, sepia_matrix, in.sepia);
+    return vec4<f32>(mix(sepia, vec3<f32>(1.0) - sepia, invert), color.a);
 }

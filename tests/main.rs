@@ -44,7 +44,6 @@ impl<'window> WgpuCtx<'window> {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        rpass.set_pipeline(&self.render_pipeline);
 
         self.tree.render(&self.device, &mut rpass);
 
