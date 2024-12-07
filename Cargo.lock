@@ -599,17 +599,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gui-lib"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "env_logger",
- "pollster",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -809,6 +798,17 @@ dependencies = [
  "log",
  "objc",
  "paste",
+]
+
+[[package]]
+name = "moxui"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "env_logger",
+ "pollster",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]

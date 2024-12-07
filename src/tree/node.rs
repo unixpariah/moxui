@@ -15,19 +15,8 @@ use super::Node;
 // hue-rotate        | [x]                   | [ ]
 
 impl Node {
-    pub fn set_boxshadow_offset(mut self, x_offset: f32, y_offset: f32) -> Self {
-        self.box_shadow.x_offset = x_offset;
-        self.box_shadow.y_offset = y_offset;
-        self
-    }
-
-    pub fn set_boxshadow_softness(mut self, softness: f32) -> Self {
-        self.box_shadow.softness = softness;
-        self
-    }
-
-    pub fn set_boxshadow_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
-        self.box_shadow.color = [r, g, b, a];
+    pub fn set_display(mut self, display: rectangle::Display) -> Self {
+        self.display = display;
         self
     }
 

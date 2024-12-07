@@ -87,7 +87,25 @@ impl Default for Border {
     }
 }
 
+#[derive(PartialEq)]
+pub enum Display {
+    Inline,
+    Block,
+    InlineBlock,
+    Flex,
+    Contents,
+    InlineFlex,
+    Grid,
+    InlineGrid,
+    Table,
+    InlineTable,
+    ListItem,
+    None,
+    RunIn,
+}
+
 pub struct Rectangle {
+    pub display: Display,
     pub x: f32,
     pub y: f32,
     pub width: f32,
@@ -216,6 +234,7 @@ impl Rectangle {
 impl Default for Rectangle {
     fn default() -> Self {
         Self {
+            display: Display::Block,
             x: 0.0,
             y: 0.0,
             width: 1.0,

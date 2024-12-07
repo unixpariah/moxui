@@ -6,7 +6,6 @@ use std::ops::{Deref, DerefMut};
 pub struct Tree {
     render_pipeline: wgpu::RenderPipeline,
     projection_uniform: buffers::ProjectionUniform,
-    instance_buffer: buffers::InstanceBuffer,
     index_buffer: buffers::IndexBuffer,
     generic_rect: buffers::VertexBuffer,
     node: Node,
@@ -18,8 +17,6 @@ impl Tree {
         F: Fn(Node) -> Node,
     {
         let node = f(Node::new());
-        let mut instances = Vec::new();
-        node.collect_instances(&mut instances);
 
         let projection_uniform = buffers::ProjectionUniform::new(
             device,
@@ -98,25 +95,24 @@ impl Tree {
             generic_rect: buffers::VertexBuffer::new(device, &generic_rect_vertices),
             projection_uniform,
             node,
-            instance_buffer: buffers::InstanceBuffer::new(device, &instances),
         }
     }
 
-    pub fn render(&self, render_pass: &mut wgpu::RenderPass) {
+    pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
+        let mut instances = Vec::new();
+        self.collect_instances(&mut instances);
+        let instance_buffer = buffers::InstanceBuffer::new(device, &instances);
+
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_bind_group(0, &self.projection_uniform.bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.generic_rect.slice(..));
 
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
 
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
-        render_pass.draw_indexed(
-            0..self.index_buffer.size(),
-            0,
-            0..self.instance_buffer.size(),
-        );
+        render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..instance_buffer.size());
     }
 }
 
@@ -151,6 +147,20 @@ impl DerefMut for Node {
     }
 }
 
+// Recursively collect children with display: contents; parent and temporarily 'reparent' them
+fn collect_children(children: &mut Vec<Node>) -> Vec<&mut Node> {
+    children
+        .iter_mut()
+        .flat_map(|child| {
+            if child.display == rectangle::Display::Contents {
+                collect_children(&mut child.children)
+            } else {
+                vec![child]
+            }
+        })
+        .collect()
+}
+
 impl Node {
     pub fn new() -> Self {
         return Self {
@@ -163,15 +173,24 @@ impl Node {
         let extents = self.get_extents();
         let mut pos = (extents.x, extents.y);
 
-        self.children.iter_mut().for_each(|child| {
-            child.x = pos.0;
-            child.y = pos.1;
+        let mut children = collect_children(&mut self.children);
 
+        children.iter_mut().for_each(|child| {
             let extents = child.get_extents();
 
-            pos.1 += extents.height;
+            match child.display {
+                rectangle::Display::Block => {
+                    child.x = pos.0;
+                    child.y = pos.1;
 
-            child.position_children();
+                    pos.1 = extents.y + extents.height;
+
+                    child.position_children();
+                }
+                rectangle::Display::Contents => {}
+                rectangle::Display::None => {}
+                _ => {}
+            }
         })
     }
 
@@ -188,7 +207,13 @@ impl Node {
     }
 
     fn collect_instances(&self, instances: &mut Vec<buffers::Instance>) {
-        instances.push(self.data.get_instance());
+        if self.display == rectangle::Display::None {
+            return;
+        }
+
+        if self.display != rectangle::Display::Contents {
+            instances.push(self.data.get_instance());
+        }
 
         self.children
             .iter()

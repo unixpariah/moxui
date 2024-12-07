@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gui_lib::tree;
+use moxui::tree;
 use winit::window::Window;
 
 pub struct WgpuCtx<'window> {
@@ -45,6 +45,7 @@ impl<'window> WgpuCtx<'window> {
                 .add_child(|item| {
                     item.set_background_color(1.0, 0.0, 0.0, 1.0)
                         .set_size(300.0, 300.0)
+                        .set_display(moxui::rectangle::Display::Contents)
                         .set_border_radius(10.0, 10.0, 10.0, 10.0)
                         .set_margin(0.0, 0.0, 0.0, 20.0)
                         .add_child(|item| {
@@ -58,9 +59,6 @@ impl<'window> WgpuCtx<'window> {
                     item.set_background_color(0.0, 1.0, 0.0, 1.0)
                         .set_size(100.0, 100.0)
                         .set_border_radius(55.0, 55.0, 55.0, 55.0)
-                        .set_boxshadow_offset(0.0, 10.0)
-                        .set_boxshadow_color(1.0, 1.0, 0.0, 1.0)
-                        .set_boxshadow_softness(30.0)
                 })
         });
 
