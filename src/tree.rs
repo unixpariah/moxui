@@ -1,7 +1,11 @@
 mod node;
 
 use crate::{buffers, rectangle};
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    rc::Rc,
+    sync::{PoisonError, RwLock, RwLockWriteGuard},
+};
 
 pub struct Tree {
     render_pipeline: wgpu::RenderPipeline,
@@ -16,7 +20,12 @@ impl Tree {
     where
         F: Fn(Node) -> Node,
     {
-        let node = f(Node::new());
+        let viewport = Rc::new(RwLock::new((config.width as f32, config.width as f32)));
+
+        let mut node = Node::new(viewport);
+        node.width = config.width as f32;
+        node.height = config.height as f32;
+        let node = f(node);
 
         let projection_uniform = buffers::ProjectionUniform::new(
             device,
@@ -98,6 +107,21 @@ impl Tree {
         }
     }
 
+    pub fn set_viewport(
+        &mut self,
+        device: &wgpu::Device,
+        width: f32,
+        height: f32,
+    ) -> Result<(), PoisonError<RwLockWriteGuard<'_, (f32, f32)>>> {
+        self.projection_uniform = buffers::ProjectionUniform::new(device, 0.0, width, 0.0, height);
+
+        let mut viewport = self.viewport.write()?;
+        viewport.0 = width;
+        viewport.1 = height;
+
+        return Ok(());
+    }
+
     pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
         let mut instances = Vec::new();
         self.collect_instances(&mut instances);
@@ -132,6 +156,7 @@ impl DerefMut for Tree {
 pub struct Node {
     pub children: Vec<Node>,
     pub data: rectangle::Rectangle,
+    pub viewport: Rc<RwLock<(f32, f32)>>,
 }
 
 impl Deref for Node {
@@ -152,7 +177,7 @@ fn collect_children(children: &mut Vec<Node>) -> Vec<&mut Node> {
     children
         .iter_mut()
         .flat_map(|child| {
-            if child.display == rectangle::Display::Contents {
+            if child.style.display == rectangle::Display::Contents {
                 collect_children(&mut child.children)
             } else {
                 vec![child]
@@ -162,43 +187,63 @@ fn collect_children(children: &mut Vec<Node>) -> Vec<&mut Node> {
 }
 
 impl Node {
-    pub fn new() -> Self {
+    pub fn new(viewport: Rc<RwLock<(f32, f32)>>) -> Self {
         return Self {
             data: rectangle::Rectangle::default(),
             children: Vec::new(),
+            viewport,
         };
     }
 
     pub fn position_children(&mut self) {
         let extents = self.get_extents();
         let mut pos = (extents.x, extents.y);
+        let width = self.width;
+        let height = self.height;
 
         let mut children = collect_children(&mut self.children);
-
-        children.iter_mut().for_each(|child| {
-            let extents = child.get_extents();
-
-            match child.display {
+        children
+            .iter_mut()
+            .for_each(|child| match child.style.display {
                 rectangle::Display::Block => {
                     child.x = pos.0;
                     child.y = pos.1;
 
-                    pos.1 = extents.y + extents.height;
+                    let viewport = self.viewport.read().unwrap();
+                    child.margin.top = child.style.margin[0].to_px(height, *viewport);
+                    child.margin.right = child.style.margin[1].to_px(width, *viewport);
+                    child.margin.bottom = child.style.margin[2].to_px(height, *viewport);
+                    child.margin.left = child.style.margin[3].to_px(width, *viewport);
+
+                    match &child.style.width {
+                        None => {
+                            let adjustment = child.get_extents().width - child.width;
+                            child.width = extents.width - adjustment;
+                        }
+                        Some(units) => child.width = units.to_px(width, *viewport),
+                    }
+
+                    match &child.style.height {
+                        None => child.height = 0.0,
+                        Some(units) => child.height = units.to_px(height, *viewport),
+                    }
+
+                    let child_extents = child.get_extents();
+                    pos.1 = child_extents.y + child_extents.height;
 
                     child.position_children();
                 }
                 rectangle::Display::Contents => {}
                 rectangle::Display::None => {}
                 _ => {}
-            }
-        })
+            })
     }
 
     pub fn add_child<F>(mut self, f: F) -> Self
     where
         F: Fn(Node) -> Node,
     {
-        let node = f(Node::new());
+        let node = f(Node::new(Rc::clone(&self.viewport)));
         self.children.push(node);
 
         self.position_children();
@@ -207,11 +252,11 @@ impl Node {
     }
 
     fn collect_instances(&self, instances: &mut Vec<buffers::Instance>) {
-        if self.display == rectangle::Display::None {
+        if self.style.display == rectangle::Display::None {
             return;
         }
 
-        if self.display != rectangle::Display::Contents {
+        if self.style.display != rectangle::Display::Contents {
             instances.push(self.data.get_instance());
         }
 

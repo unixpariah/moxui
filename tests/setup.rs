@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use moxui::tree;
+use moxui::{rectangle::Units, tree};
 use winit::window::Window;
 
 pub struct WgpuCtx<'window> {
@@ -35,29 +35,57 @@ impl<'window> WgpuCtx<'window> {
             surface
                 .set_background_color(0.0, 0.0, 0.0, 0.0)
                 .add_child(|item| {
-                    item.set_background_color(0.0, 0.0, 1.0, 1.0)
-                        .set_size(100.0, 100.0)
+                    let mut item = item
+                        .set_background_color(0.0, 0.0, 1.0, 1.0)
+                        //.set_size(Units::Px(100.0), Units::Px(100.0))
                         .set_border_radius(0.0, 10.0, 30.0, 50.0)
                         .set_border_color(1.0, 1.0, 1.0, 1.0)
-                        .set_border_size(2.0, 2.0, 2.0, 2.0)
-                        .set_margin(0.0, 0.0, 50.0, 0.0)
+                        .set_border_size(5.0, 5.0, 5.0, 5.0)
+                        .set_margin(
+                            Units::Px(0.0),
+                            Units::Px(0.0),
+                            Units::Px(50.0),
+                            Units::Px(0.0),
+                        );
+                    item.style.height = Some(Units::Px(100.0));
+                    item
                 })
                 .add_child(|item| {
                     item.set_background_color(1.0, 0.0, 0.0, 1.0)
-                        .set_size(300.0, 300.0)
-                        .set_display(moxui::rectangle::Display::Contents)
+                        .set_size(Units::Px(300.0), Units::Px(300.0))
                         .set_border_radius(10.0, 10.0, 10.0, 10.0)
-                        .set_margin(0.0, 0.0, 0.0, 20.0)
+                        .set_margin(
+                            Units::Px(0.0),
+                            Units::Px(0.0),
+                            Units::Px(0.0),
+                            Units::Px(20.0),
+                        )
                         .add_child(|item| {
                             item.set_background_color(0.0, 1.0, 0.0, 1.0)
-                                .set_size(30.0, 30.0)
+                                .set_size(Units::Px(150.0), Units::Px(150.0))
                                 .set_border_radius(10.0, 10.0, 10.0, 10.0)
-                                .set_margin(40.0, 0.0, 0.0, 20.0)
+                                .set_margin(
+                                    Units::Px(40.0),
+                                    Units::Px(0.0),
+                                    Units::Px(0.0),
+                                    Units::Px(20.0),
+                                )
+                                .add_child(|item| {
+                                    item.set_background_color(0.0, 0.0, 1.0, 1.0)
+                                        .set_size(Units::Px(50.0), Units::Px(50.0))
+                                        .set_border_radius(10.0, 10.0, 10.0, 10.0)
+                                        .set_margin(
+                                            Units::Px(40.0),
+                                            Units::Px(0.0),
+                                            Units::Px(0.0),
+                                            Units::Px(20.0),
+                                        )
+                                })
                         })
                 })
                 .add_child(|item| {
                     item.set_background_color(0.0, 1.0, 0.0, 1.0)
-                        .set_size(100.0, 100.0)
+                        .set_size(Units::Px(100.0), Units::Px(100.0))
                         .set_border_radius(55.0, 55.0, 55.0, 55.0)
                 })
         });

@@ -1,18 +1,31 @@
 use crate::buffers;
 
+pub enum Units {
+    Px(f32),
+    Perc(f32),
+    Vw(f32),
+    Vh(f32),
+    Vmin(f32),
+    Vmax(f32),
+}
+
+impl Units {
+    pub fn to_px(&self, parent_size: f32, viewport: (f32, f32)) -> f32 {
+        match self {
+            Self::Px(num) => *num,
+            Self::Perc(num) => (*num / 100.0) * parent_size,
+            Self::Vw(num) => *num * viewport.0 / 100.0,
+            Self::Vh(num) => *num * viewport.1 / 100.0,
+            Self::Vmin(num) => *num * viewport.0.min(viewport.1) as f32 / 100.0,
+            Self::Vmax(num) => *num * viewport.0.max(viewport.1) / 100.0,
+        }
+    }
+}
+
 #[derive(PartialEq)]
 pub enum BoxSizing {
     ContentBox,
     BorderBox,
-}
-
-#[derive(Default)]
-pub struct BoxShadow {
-    pub x_offset: f32,
-    pub y_offset: f32,
-    pub softness: f32,
-    pub color: [f32; 4],
-    pub inset: bool,
 }
 
 #[derive(Default)]
@@ -104,8 +117,29 @@ pub enum Display {
     RunIn,
 }
 
-pub struct Rectangle {
+pub struct Style {
     pub display: Display,
+    pub width: Option<Units>,
+    pub height: Option<Units>,
+    pub margin: [Units; 4],
+    pub padding: [Units; 4],
+    pub box_sizing: BoxSizing,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self {
+            display: Display::Block,
+            width: None,
+            height: None,
+            margin: [const { Units::Px(0.0) }; 4],
+            padding: [const { Units::Px(0.0) }; 4],
+            box_sizing: BoxSizing::ContentBox,
+        }
+    }
+}
+
+pub struct Rectangle {
     pub x: f32,
     pub y: f32,
     pub width: f32,
@@ -113,10 +147,8 @@ pub struct Rectangle {
     pub background_color: [f32; 4],
     pub margin: Spacing,
     pub padding: Spacing,
-    pub box_sizing: BoxSizing,
     pub border: Border,
     pub outline: Outline,
-    pub box_shadow: BoxShadow,
     pub brightness: f32,
     pub contrast: f32,
     pub grayscale: f32,
@@ -128,6 +160,8 @@ pub struct Rectangle {
     pub rotate: f32,
     pub skew: [f32; 2],
     pub translate: [f32; 2],
+
+    pub style: Style,
 }
 
 pub enum OutlineStyle {
@@ -168,7 +202,7 @@ pub struct Extents {
 
 impl Rectangle {
     pub fn get_extents(&self) -> Extents {
-        let (width, height) = match self.box_sizing {
+        let (width, height) = match self.style.box_sizing {
             BoxSizing::ContentBox => (
                 self.width
                     + self.padding.left
@@ -234,18 +268,16 @@ impl Rectangle {
 impl Default for Rectangle {
     fn default() -> Self {
         Self {
-            display: Display::Block,
+            style: Style::default(),
             x: 0.0,
             y: 0.0,
-            width: 1.0,
-            height: 1.0,
+            width: 0.0,
+            height: 0.0,
             margin: Spacing::default(),
             padding: Spacing::default(),
             background_color: [0.0, 0.0, 0.0, 0.0],
             border: Border::default(),
             outline: Outline::default(),
-            box_sizing: BoxSizing::ContentBox,
-            box_shadow: BoxShadow::default(),
             brightness: 0.0,
             contrast: 1.0,
             grayscale: 0.0,

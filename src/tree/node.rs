@@ -16,18 +16,18 @@ use super::Node;
 
 impl Node {
     pub fn set_display(mut self, display: rectangle::Display) -> Self {
-        self.display = display;
+        self.style.display = display;
         self
     }
 
-    pub fn set_size(mut self, width: f32, height: f32) -> Self {
-        self.width = width;
-        self.height = height;
+    pub fn set_size(mut self, width: rectangle::Units, height: rectangle::Units) -> Self {
+        self.style.width = Some(width);
+        self.style.height = Some(height);
         self
     }
 
     pub fn set_box_sizing(mut self, box_sizing: rectangle::BoxSizing) -> Self {
-        self.box_sizing = box_sizing;
+        self.style.box_sizing = box_sizing;
         self
     }
 
@@ -46,13 +46,14 @@ impl Node {
         self
     }
 
-    pub fn set_margin(mut self, top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        self.margin = rectangle::Spacing {
-            top,
-            right,
-            bottom,
-            left,
-        };
+    pub fn set_margin(
+        mut self,
+        top: rectangle::Units,
+        right: rectangle::Units,
+        bottom: rectangle::Units,
+        left: rectangle::Units,
+    ) -> Self {
+        self.style.margin = [top, right, bottom, left];
         self
     }
 
