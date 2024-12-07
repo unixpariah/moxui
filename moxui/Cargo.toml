@@ -1,0 +1,18 @@
+[package]
+name = "moxui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = { version = "1.19.0", features = ["derive"] }
+env_logger = "0.11.5"
+wgpu = "23.0.0"
+
+[dev-dependencies]
+winit = "0.30.5"
+pollster = "0.4.0"
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"
+harness = false
