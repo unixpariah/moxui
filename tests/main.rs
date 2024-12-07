@@ -1,5 +1,6 @@
 mod setup;
 
+use moxui::rectangle::units;
 use setup::WgpuCtx;
 use std::sync::Arc;
 use winit::{
@@ -18,42 +19,6 @@ fn main() -> Result<(), EventLoopError> {
     event_loop.run_app(&mut app)
 }
 
-impl<'window> WgpuCtx<'window> {
-    pub fn draw(&self) {
-        let surface_texture = self
-            .surface
-            .get_current_texture()
-            .expect("Failed to acquire next swap chain texture");
-        let texture_view = surface_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &texture_view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
-
-        self.tree.render(&self.device, &mut rpass);
-
-        drop(rpass);
-
-        self.queue.submit(Some(encoder.finish()));
-        surface_texture.present();
-    }
-}
-
 #[derive(Default)]
 pub struct App<'window> {
     window: Option<Arc<Window>>,
@@ -70,7 +35,45 @@ impl<'window> ApplicationHandler for App<'window> {
                     .expect("create window err."),
             );
             self.window = Some(window.clone());
-            let wgpu_ctx = WgpuCtx::new(window.clone());
+            let mut wgpu_ctx = WgpuCtx::new(window.clone());
+
+            let tree =
+                moxui::tree::Tree::new(&wgpu_ctx.device, &wgpu_ctx.surface_config, |surface| {
+                    surface
+                        .set_background_color(0.0, 0.0, 0.0, 0.0)
+                        .add_child(|item| {
+                            item.set_background_color(0.0, 0.0, 1.0, 1.0)
+                                .set_size(None, Some(units::Units::Px(100.0)))
+                                .add_child(|item| {
+                                    item.set_background_color(0.0, 1.0, 0.0, 1.0)
+                                        .set_margin(
+                                            units::Units::Calc(Box::new(units::CalcExpr::Sub(
+                                                Box::new(units::CalcExpr::Value(
+                                                    units::Units::Perc(50.0),
+                                                )),
+                                                Box::new(units::CalcExpr::Value(units::Units::Px(
+                                                    25.0,
+                                                ))),
+                                            ))),
+                                            units::Units::Px(0.0),
+                                            units::Units::Px(0.0),
+                                            units::Units::Perc(25.0),
+                                        )
+                                        .set_size(
+                                            Some(units::Units::Perc(50.0)),
+                                            Some(units::Units::Px(50.0)),
+                                        )
+                                })
+                        })
+                        .add_child(|item| {
+                            item.set_background_color(1.0, 0.0, 0.0, 1.0)
+                                .set_border_size(5.0, 5.0, 5.0, 5.0)
+                                .set_border_color(1.0, 1.0, 1.0, 1.0)
+                                .set_size(None, Some(units::Units::Px(100.0)))
+                        })
+                });
+            wgpu_ctx.tree = Some(tree);
+
             self.wgpu_ctx = Some(wgpu_ctx);
         }
     }

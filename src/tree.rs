@@ -1,6 +1,9 @@
 mod node;
 
-use crate::{buffers, rectangle};
+use crate::{
+    buffers,
+    rectangle::{self, units},
+};
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -202,30 +205,45 @@ impl Node {
         let height = self.height;
 
         let mut children = collect_children(&mut self.children);
-        children
-            .iter_mut()
-            .for_each(|child| match child.style.display {
+        children.iter_mut().for_each(|child| {
+            let viewport = self.viewport.read().unwrap();
+
+            let vert_context = units::Context {
+                parent_size: height,
+                viewport: *viewport,
+            };
+
+            let hor_context = units::Context {
+                parent_size: width,
+                viewport: *viewport,
+            };
+
+            child.margin.top = child.style.margin[0].to_px(&vert_context);
+            child.margin.right = child.style.margin[1].to_px(&hor_context);
+            child.margin.bottom = child.style.margin[2].to_px(&vert_context);
+            child.margin.left = child.style.margin[3].to_px(&hor_context);
+
+            child.padding.top = child.style.padding[0].to_px(&vert_context);
+            child.padding.right = child.style.padding[1].to_px(&hor_context);
+            child.padding.bottom = child.style.padding[2].to_px(&vert_context);
+            child.padding.left = child.style.padding[3].to_px(&hor_context);
+
+            match child.style.display {
                 rectangle::Display::Block => {
                     child.x = pos.0;
                     child.y = pos.1;
-
-                    let viewport = self.viewport.read().unwrap();
-                    child.margin.top = child.style.margin[0].to_px(height, *viewport);
-                    child.margin.right = child.style.margin[1].to_px(width, *viewport);
-                    child.margin.bottom = child.style.margin[2].to_px(height, *viewport);
-                    child.margin.left = child.style.margin[3].to_px(width, *viewport);
 
                     match &child.style.width {
                         None => {
                             let adjustment = child.get_extents().width - child.width;
                             child.width = extents.width - adjustment;
                         }
-                        Some(units) => child.width = units.to_px(width, *viewport),
+                        Some(units) => child.width = units.to_px(&hor_context),
                     }
 
                     match &child.style.height {
                         None => child.height = 0.0,
-                        Some(units) => child.height = units.to_px(height, *viewport),
+                        Some(units) => child.height = units.to_px(&vert_context),
                     }
 
                     let child_extents = child.get_extents();
@@ -233,10 +251,34 @@ impl Node {
 
                     child.position_children();
                 }
+                rectangle::Display::InlineBlock => {
+                    child.x = pos.0;
+                    child.y = pos.1;
+
+                    match &child.style.width {
+                        None => child.width = 0.0,
+                        Some(units) => child.width = units.to_px(&hor_context),
+                    }
+
+                    match &child.style.height {
+                        None => child.height = 0.0,
+                        Some(units) => child.height = units.to_px(&vert_context),
+                    }
+
+                    let child_extents = child.get_extents();
+                    pos.0 = child_extents.x + child_extents.width;
+                    if pos.0 > width {
+                        pos.0 = 0.0;
+                        pos.1 = child_extents.y + child_extents.height;
+                    }
+
+                    child.position_children();
+                }
                 rectangle::Display::Contents => {}
                 rectangle::Display::None => {}
                 _ => {}
-            })
+            }
+        })
     }
 
     pub fn add_child<F>(mut self, f: F) -> Self

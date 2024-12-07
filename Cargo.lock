@@ -807,6 +807,8 @@ dependencies = [
  "bytemuck",
  "env_logger",
  "pollster",
+ "quote",
+ "syn",
  "wgpu",
  "winit",
 ]

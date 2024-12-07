@@ -1,26 +1,6 @@
+pub mod units;
+
 use crate::buffers;
-
-pub enum Units {
-    Px(f32),
-    Perc(f32),
-    Vw(f32),
-    Vh(f32),
-    Vmin(f32),
-    Vmax(f32),
-}
-
-impl Units {
-    pub fn to_px(&self, parent_size: f32, viewport: (f32, f32)) -> f32 {
-        match self {
-            Self::Px(num) => *num,
-            Self::Perc(num) => (*num / 100.0) * parent_size,
-            Self::Vw(num) => *num * viewport.0 / 100.0,
-            Self::Vh(num) => *num * viewport.1 / 100.0,
-            Self::Vmin(num) => *num * viewport.0.min(viewport.1) as f32 / 100.0,
-            Self::Vmax(num) => *num * viewport.0.max(viewport.1) / 100.0,
-        }
-    }
-}
 
 #[derive(PartialEq)]
 pub enum BoxSizing {
@@ -119,10 +99,10 @@ pub enum Display {
 
 pub struct Style {
     pub display: Display,
-    pub width: Option<Units>,
-    pub height: Option<Units>,
-    pub margin: [Units; 4],
-    pub padding: [Units; 4],
+    pub width: Option<units::Units>,
+    pub height: Option<units::Units>,
+    pub margin: [units::Units; 4],
+    pub padding: [units::Units; 4],
     pub box_sizing: BoxSizing,
 }
 
@@ -132,8 +112,8 @@ impl Default for Style {
             display: Display::Block,
             width: None,
             height: None,
-            margin: [const { Units::Px(0.0) }; 4],
-            padding: [const { Units::Px(0.0) }; 4],
+            margin: [const { units::Units::Px(0.0) }; 4],
+            padding: [const { units::Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
         }
     }

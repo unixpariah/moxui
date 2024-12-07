@@ -1,15 +1,51 @@
 use std::sync::Arc;
 
-use moxui::{rectangle::Units, tree};
+use moxui::tree;
 use winit::window::Window;
 
 pub struct WgpuCtx<'window> {
     pub surface: wgpu::Surface<'window>,
-    surface_config: wgpu::SurfaceConfiguration,
+    pub surface_config: wgpu::SurfaceConfiguration,
     adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub tree: tree::Tree,
+    pub tree: Option<tree::Tree>,
+}
+
+impl<'window> WgpuCtx<'window> {
+    pub fn draw(&self) {
+        let surface_texture = self
+            .surface
+            .get_current_texture()
+            .expect("Failed to acquire next swap chain texture");
+        let texture_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &texture_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        self.tree.as_ref().unwrap().render(&self.device, &mut rpass);
+
+        drop(rpass);
+
+        self.queue.submit(Some(encoder.finish()));
+        surface_texture.present();
+    }
 }
 
 impl<'window> WgpuCtx<'window> {
@@ -31,67 +67,8 @@ impl<'window> WgpuCtx<'window> {
         let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
         surface.configure(&device, &surface_config);
 
-        let tree = tree::Tree::new(&device, &surface_config, |surface| {
-            surface
-                .set_background_color(0.0, 0.0, 0.0, 0.0)
-                .add_child(|item| {
-                    let mut item = item
-                        .set_background_color(0.0, 0.0, 1.0, 1.0)
-                        //.set_size(Units::Px(100.0), Units::Px(100.0))
-                        .set_border_radius(0.0, 10.0, 30.0, 50.0)
-                        .set_border_color(1.0, 1.0, 1.0, 1.0)
-                        .set_border_size(5.0, 5.0, 5.0, 5.0)
-                        .set_margin(
-                            Units::Px(0.0),
-                            Units::Px(0.0),
-                            Units::Px(50.0),
-                            Units::Px(0.0),
-                        );
-                    item.style.height = Some(Units::Px(100.0));
-                    item
-                })
-                .add_child(|item| {
-                    item.set_background_color(1.0, 0.0, 0.0, 1.0)
-                        .set_size(Units::Px(300.0), Units::Px(300.0))
-                        .set_border_radius(10.0, 10.0, 10.0, 10.0)
-                        .set_margin(
-                            Units::Px(0.0),
-                            Units::Px(0.0),
-                            Units::Px(0.0),
-                            Units::Px(20.0),
-                        )
-                        .add_child(|item| {
-                            item.set_background_color(0.0, 1.0, 0.0, 1.0)
-                                .set_size(Units::Px(150.0), Units::Px(150.0))
-                                .set_border_radius(10.0, 10.0, 10.0, 10.0)
-                                .set_margin(
-                                    Units::Px(40.0),
-                                    Units::Px(0.0),
-                                    Units::Px(0.0),
-                                    Units::Px(20.0),
-                                )
-                                .add_child(|item| {
-                                    item.set_background_color(0.0, 0.0, 1.0, 1.0)
-                                        .set_size(Units::Px(50.0), Units::Px(50.0))
-                                        .set_border_radius(10.0, 10.0, 10.0, 10.0)
-                                        .set_margin(
-                                            Units::Px(40.0),
-                                            Units::Px(0.0),
-                                            Units::Px(0.0),
-                                            Units::Px(20.0),
-                                        )
-                                })
-                        })
-                })
-                .add_child(|item| {
-                    item.set_background_color(0.0, 1.0, 0.0, 1.0)
-                        .set_size(Units::Px(100.0), Units::Px(100.0))
-                        .set_border_radius(55.0, 55.0, 55.0, 55.0)
-                })
-        });
-
         WgpuCtx {
-            tree,
+            tree: None,
             surface,
             surface_config,
             adapter,
