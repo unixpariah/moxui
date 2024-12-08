@@ -245,6 +245,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
 
 [[package]]
+name = "calc_macro"
+version = "0.1.0"
+dependencies = [
+ "calc_units",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "calc_units"
+version = "0.1.0"
+
+[[package]]
 name = "calloop"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -805,6 +819,8 @@ name = "moxui"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "calc_macro",
+ "calc_units",
  "env_logger",
  "pollster",
  "wgpu",
@@ -1239,10 +1255,6 @@ checksum = "37d3544b3f2748c54e147655edb5025752e2303145b5aefb3c3ea2c78b973bb0"
 dependencies = [
  "unicode-ident",
 ]
-
-[[package]]
-name = "proc_macros"
-version = "0.1.0"
 
 [[package]]
 name = "profiling"

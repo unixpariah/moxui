@@ -12,8 +12,9 @@ pub enum CalcExpr {
     Value(Units),
     Add(Box<CalcExpr>, Box<CalcExpr>),
     Sub(Box<CalcExpr>, Box<CalcExpr>),
-    Mul(Box<CalcExpr>, f32),
-    Div(Box<CalcExpr>, f32),
+    Mul(Box<CalcExpr>, Box<CalcExpr>),
+    Div(Box<CalcExpr>, Box<CalcExpr>),
+    Paren(Box<CalcExpr>),
 }
 
 impl CalcExpr {
@@ -22,8 +23,9 @@ impl CalcExpr {
             CalcExpr::Value(unit) => unit.to_px(context),
             CalcExpr::Add(left, right) => left.evaluate(context) + right.evaluate(context),
             CalcExpr::Sub(left, right) => left.evaluate(context) - right.evaluate(context),
-            CalcExpr::Mul(expr, scalar) => expr.evaluate(context) * scalar,
-            CalcExpr::Div(expr, scalar) => expr.evaluate(context) / scalar,
+            CalcExpr::Mul(expr, scalar) => expr.evaluate(context) * scalar.evaluate(context),
+            CalcExpr::Div(expr, scalar) => expr.evaluate(context) / scalar.evaluate(context),
+            CalcExpr::Paren(expr) => expr.evaluate(context),
         }
     }
 }

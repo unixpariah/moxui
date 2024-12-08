@@ -1,4 +1,5 @@
-use crate::rectangle::{self, units};
+use crate::rectangle;
+use calc_units::Units;
 
 use super::Node;
 
@@ -20,7 +21,7 @@ impl Node {
         self
     }
 
-    pub fn set_size(mut self, width: Option<units::Units>, height: Option<units::Units>) -> Self {
+    pub fn set_size(mut self, width: Option<Units>, height: Option<Units>) -> Self {
         self.style.width = width;
         self.style.height = height;
         self
@@ -31,13 +32,7 @@ impl Node {
         self
     }
 
-    pub fn set_padding(
-        mut self,
-        top: units::Units,
-        right: units::Units,
-        bottom: units::Units,
-        left: units::Units,
-    ) -> Self {
+    pub fn set_padding(mut self, top: Units, right: Units, bottom: Units, left: Units) -> Self {
         self.style.padding = [top, right, bottom, left];
 
         self
@@ -48,13 +43,7 @@ impl Node {
         self
     }
 
-    pub fn set_margin(
-        mut self,
-        top: units::Units,
-        right: units::Units,
-        bottom: units::Units,
-        left: units::Units,
-    ) -> Self {
+    pub fn set_margin(mut self, top: Units, right: Units, bottom: Units, left: Units) -> Self {
         self.style.margin = [top, right, bottom, left];
         self
     }

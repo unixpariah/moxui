@@ -1,6 +1,5 @@
-pub mod units;
-
 use crate::buffers;
+use calc_units::Units;
 
 #[derive(PartialEq)]
 pub enum BoxSizing {
@@ -99,10 +98,10 @@ pub enum Display {
 
 pub struct Style {
     pub display: Display,
-    pub width: Option<units::Units>,
-    pub height: Option<units::Units>,
-    pub margin: [units::Units; 4],
-    pub padding: [units::Units; 4],
+    pub width: Option<Units>,
+    pub height: Option<Units>,
+    pub margin: [Units; 4],
+    pub padding: [Units; 4],
     pub box_sizing: BoxSizing,
 }
 
@@ -112,8 +111,8 @@ impl Default for Style {
             display: Display::Block,
             width: None,
             height: None,
-            margin: [const { units::Units::Px(0.0) }; 4],
-            padding: [const { units::Units::Px(0.0) }; 4],
+            margin: [const { Units::Px(0.0) }; 4],
+            padding: [const { Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
         }
     }

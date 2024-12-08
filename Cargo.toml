@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
+members = [ 
+    "calc_units",
     "moxui",
     "proc_macros"
 ]

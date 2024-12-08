@@ -1,6 +1,7 @@
 mod setup;
 
-use moxui::rectangle::units;
+use calc_macro::calc;
+use calc_units::Units;
 use setup::WgpuCtx;
 use std::sync::Arc;
 use winit::{
@@ -43,33 +44,23 @@ impl<'window> ApplicationHandler for App<'window> {
                         .set_background_color(0.0, 0.0, 0.0, 0.0)
                         .add_child(|item| {
                             item.set_background_color(0.0, 0.0, 1.0, 1.0)
-                                .set_size(None, Some(units::Units::Px(100.0)))
+                                .set_size(None, Some(Units::Px(100.0)))
                                 .add_child(|item| {
                                     item.set_background_color(0.0, 1.0, 0.0, 1.0)
                                         .set_margin(
-                                            units::Units::Calc(Box::new(units::CalcExpr::Sub(
-                                                Box::new(units::CalcExpr::Value(
-                                                    units::Units::Perc(50.0),
-                                                )),
-                                                Box::new(units::CalcExpr::Value(units::Units::Px(
-                                                    25.0,
-                                                ))),
-                                            ))),
-                                            units::Units::Px(0.0),
-                                            units::Units::Px(0.0),
-                                            units::Units::Perc(25.0),
+                                            calc!("50%" - 25px),
+                                            Units::Px(0.0),
+                                            Units::Px(0.0),
+                                            Units::Perc(25.0),
                                         )
-                                        .set_size(
-                                            Some(units::Units::Perc(50.0)),
-                                            Some(units::Units::Px(50.0)),
-                                        )
+                                        .set_size(Some(Units::Perc(50.0)), Some(Units::Px(50.0)))
                                 })
                         })
                         .add_child(|item| {
                             item.set_background_color(1.0, 0.0, 0.0, 1.0)
                                 .set_border_size(5.0, 5.0, 5.0, 5.0)
                                 .set_border_color(1.0, 1.0, 1.0, 1.0)
-                                .set_size(None, Some(units::Units::Px(100.0)))
+                                .set_size(None, Some(Units::Px(100.0)))
                         })
                 });
             wgpu_ctx.tree = Some(tree);

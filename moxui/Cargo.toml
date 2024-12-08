@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 bytemuck = { version = "1.19.0", features = ["derive"] }
+calc_macro = { version = "0.1.0", path = "../proc_macros" }
+calc_units = { version = "0.1.0", path = "../calc_units" }
 env_logger = "0.11.5"
 wgpu = "23.0.0"
 

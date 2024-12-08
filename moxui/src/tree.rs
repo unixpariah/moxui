@@ -1,9 +1,7 @@
 mod node;
 
-use crate::{
-    buffers,
-    rectangle::{self, units},
-};
+use crate::{buffers, rectangle};
+use calc_units::Context;
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -208,12 +206,12 @@ impl Node {
         children.iter_mut().for_each(|child| {
             let viewport = self.viewport.read().unwrap();
 
-            let vert_context = units::Context {
+            let vert_context = Context {
                 parent_size: height,
                 viewport: *viewport,
             };
 
-            let hor_context = units::Context {
+            let hor_context = Context {
                 parent_size: width,
                 viewport: *viewport,
             };
