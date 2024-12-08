@@ -44,25 +44,49 @@ impl<'window> ApplicationHandler for App<'window> {
                         .set_background_color(0.0, 0.0, 0.0, 0.0)
                         .add_child(|item| {
                             item.set_background_color(0.0, 0.0, 1.0, 1.0)
-                                .set_size(None, Some(Units::Px(100.0)))
                                 .add_child(|item| {
                                     item.set_background_color(0.0, 1.0, 0.0, 1.0)
                                         .set_margin(
+                                            Units::Px(50.0),
+                                            Units::Px(0.0),
+                                            Units::Px(0.0),
                                             calc!("50%" - 25px),
-                                            Units::Px(0.0),
-                                            Units::Px(0.0),
-                                            Units::Perc(25.0),
                                         )
-                                        .set_size(Some(Units::Perc(50.0)), Some(Units::Px(50.0)))
+                                        .set_size(Some(Units::Px(50.0)), Some(Units::Px(50.0)))
                                 })
                         })
                         .add_child(|item| {
                             item.set_background_color(1.0, 0.0, 0.0, 1.0)
-                                .set_border_size(5.0, 5.0, 5.0, 5.0)
-                                .set_border_color(1.0, 1.0, 1.0, 1.0)
-                                .set_size(None, Some(Units::Px(100.0)))
+                                .set_size(None, Some(Units::Px(50.0)))
                         })
-                });
+                        .add_child(|item| item.set_background_color(0.0, 0.0, 1.0, 1.0))
+                        .add_child(|item| {
+                            item.set_background_color(0.0, 1.0, 0.0, 1.0)
+                                .set_size(Some(Units::Perc(50.0)), Some(Units::Px(50.0)))
+                        })
+                        .add_child(|item| {
+                            item.set_background_color(1.0, 0.0, 0.0, 1.0)
+                                .set_size(Some(Units::Perc(50.0)), Some(Units::Px(50.0)))
+                        })
+                        .add_child(|item| {
+                            item.set_background_color(0.5, 0.5, 0.0, 1.0)
+                                .set_margin(
+                                    Units::Px(25.0),
+                                    Units::Px(0.0),
+                                    Units::Px(0.0),
+                                    Units::Px(0.0),
+                                )
+                                .add_child(|item| {
+                                    item.set_background_color(0.0, 1.0, 0.0, 1.0)
+                                        .set_size(Some(Units::Px(50.0)), Some(Units::Px(50.0)))
+                                })
+                                .add_child(|item| {
+                                    item.set_background_color(0.0, 0.0, 1.0, 1.0)
+                                        .set_size(Some(Units::Px(50.0)), Some(Units::Px(50.0)))
+                                })
+                        })
+                })
+                .finish();
             wgpu_ctx.tree = Some(tree);
 
             self.wgpu_ctx = Some(wgpu_ctx);

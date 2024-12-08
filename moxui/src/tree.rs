@@ -139,6 +139,12 @@ impl Tree {
 
         render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..instance_buffer.size());
     }
+
+    pub fn finish(mut self) -> Self {
+        self.position_children();
+
+        self
+    }
 }
 
 impl Deref for Tree {
@@ -196,87 +202,58 @@ impl Node {
         };
     }
 
-    pub fn position_children(&mut self) {
+    pub fn position_children(&mut self) -> (f32, f32) {
         let extents = self.get_extents();
-        let mut pos = (extents.x, extents.y);
-        let width = self.width;
-        let height = self.height;
+        let mut pos = (
+            extents.x + self.margin.left + self.padding.left,
+            extents.y + self.margin.top + self.padding.top,
+        );
+
+        let viewport = self.viewport.read().unwrap();
+        let vert_context = Context {
+            parent_size: self.height,
+            viewport: *viewport,
+        };
+        let hor_context = Context {
+            parent_size: self.width,
+            viewport: *viewport,
+        };
 
         let mut children = collect_children(&mut self.children);
-        children.iter_mut().for_each(|child| {
-            let viewport = self.viewport.read().unwrap();
-
-            let vert_context = Context {
-                parent_size: height,
-                viewport: *viewport,
-            };
-
-            let hor_context = Context {
-                parent_size: width,
-                viewport: *viewport,
-            };
-
-            child.margin.top = child.style.margin[0].to_px(&vert_context);
-            child.margin.right = child.style.margin[1].to_px(&hor_context);
-            child.margin.bottom = child.style.margin[2].to_px(&vert_context);
-            child.margin.left = child.style.margin[3].to_px(&hor_context);
-
-            child.padding.top = child.style.padding[0].to_px(&vert_context);
-            child.padding.right = child.style.padding[1].to_px(&hor_context);
-            child.padding.bottom = child.style.padding[2].to_px(&vert_context);
-            child.padding.left = child.style.padding[3].to_px(&hor_context);
-
-            match child.style.display {
+        children
+            .iter_mut()
+            .for_each(|child| match child.style.display {
                 rectangle::Display::Block => {
+                    child.margin.top = child.style.margin[0].to_px(&hor_context);
+                    child.margin.right = child.style.margin[1].to_px(&hor_context);
+                    child.margin.bottom = child.style.margin[2].to_px(&hor_context);
+                    child.margin.left = child.style.margin[3].to_px(&hor_context);
+
+                    child.padding.top = child.style.padding[0].to_px(&hor_context);
+                    child.padding.right = child.style.padding[1].to_px(&hor_context);
+                    child.padding.bottom = child.style.padding[2].to_px(&hor_context);
+                    child.padding.left = child.style.padding[3].to_px(&hor_context);
+
                     child.x = pos.0;
                     child.y = pos.1;
 
-                    match &child.style.width {
-                        None => {
-                            let adjustment = child.get_extents().width - child.width;
-                            child.width = extents.width - adjustment;
-                        }
-                        Some(units) => child.width = units.to_px(&hor_context),
-                    }
+                    child.width = match &child.style.width {
+                        None => extents.width,
+                        Some(units) => units.to_px(&hor_context),
+                    };
 
-                    match &child.style.height {
-                        None => child.height = 0.0,
-                        Some(units) => child.height = units.to_px(&vert_context),
-                    }
+                    child.height = match &child.style.height {
+                        None => child.position_children().1 - child.y,
+                        Some(units) => units.to_px(&vert_context),
+                    };
 
                     let child_extents = child.get_extents();
-                    pos.1 = child_extents.y + child_extents.height;
-
-                    child.position_children();
+                    pos.1 += child_extents.height;
                 }
-                rectangle::Display::InlineBlock => {
-                    child.x = pos.0;
-                    child.y = pos.1;
-
-                    match &child.style.width {
-                        None => child.width = 0.0,
-                        Some(units) => child.width = units.to_px(&hor_context),
-                    }
-
-                    match &child.style.height {
-                        None => child.height = 0.0,
-                        Some(units) => child.height = units.to_px(&vert_context),
-                    }
-
-                    let child_extents = child.get_extents();
-                    pos.0 = child_extents.x + child_extents.width;
-                    if pos.0 > width {
-                        pos.0 = 0.0;
-                        pos.1 = child_extents.y + child_extents.height;
-                    }
-
-                    child.position_children();
-                }
-                rectangle::Display::Contents => {}
-                rectangle::Display::None => {}
+                rectangle::Display::Contents | rectangle::Display::None => {}
                 _ => {}
-            }
-        })
+            });
+        pos
     }
 
     pub fn add_child<F>(mut self, f: F) -> Self
@@ -285,8 +262,6 @@ impl Node {
     {
         let node = f(Node::new(Rc::clone(&self.viewport)));
         self.children.push(node);
-
-        self.position_children();
 
         self
     }

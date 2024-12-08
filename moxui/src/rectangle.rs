@@ -188,37 +188,40 @@ impl Rectangle {
                     + self.padding.right
                     + self.border.size.left
                     + self.border.size.right
+                    + self.margin.left
                     + self.margin.right,
                 self.height
                     + self.padding.top
                     + self.padding.bottom
                     + self.border.size.top
                     + self.border.size.bottom
+                    + self.margin.top
                     + self.margin.bottom,
             ),
             BoxSizing::BorderBox => (self.width, self.height),
         };
 
         Extents {
-            x: self.x + self.margin.left,
-            y: self.y + self.margin.top,
+            x: self.x,
+            y: self.y,
             width,
             height,
         }
     }
 
     pub fn get_instance(&self) -> buffers::Instance {
-        let extents = self.get_extents();
+        let x = self.x + self.margin.left - self.outline.width - self.outline.offset;
+        let y = self.y + self.margin.top - self.outline.width - self.outline.offset;
 
-        let x = extents.x - self.outline.width - self.outline.offset;
+        let width = self.width
+            + self.padding.left
+            + self.padding.right
+            + (self.outline.width + self.outline.offset) * 2.0;
 
-        let y = extents.y - self.outline.width - self.outline.offset;
-
-        let width =
-            extents.width - self.margin.right + (self.outline.width + self.outline.offset) * 2.0;
-
-        let height =
-            extents.height - self.margin.bottom + (self.outline.width + self.outline.offset) * 2.0;
+        let height = self.height
+            + self.padding.top
+            + self.padding.bottom
+            + (self.outline.width + self.outline.offset) * 2.0;
 
         let bg = self.background_color;
         let oc = self.outline.color;
