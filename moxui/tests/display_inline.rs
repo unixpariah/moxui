@@ -143,22 +143,6 @@ impl<'window> ApplicationHandler for App<'window> {
                                 })
                         })
                         .add_child(|item| {
-                            item.set_display(moxui::rectangle::Display::Inline)
-                                .set_background_color(1.0, 0.0, 0.5, 1.0)
-                                .add_child(|item| {
-                                    item.set_size(Some(Units::Px(250.0)), Some(Units::Px(50.0)))
-                                        .set_background_color(0.0, 0.0, 0.0, 0.0)
-                                })
-                        })
-                        .add_child(|item| {
-                            item.set_display(moxui::rectangle::Display::Inline)
-                                .set_background_color(0.5, 0.0, 1.0, 1.0)
-                                .add_child(|item| {
-                                    item.set_size(Some(Units::Px(250.0)), Some(Units::Px(50.0)))
-                                        .set_background_color(0.0, 0.0, 0.0, 0.0)
-                                })
-                        })
-                        .add_child(|item| {
                             item.set_background_color(1.0, 0.0, 0.0, 1.0)
                                 .set_size(None, Some(Units::Px(30.0)))
                         })

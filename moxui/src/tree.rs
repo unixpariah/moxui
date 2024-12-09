@@ -247,26 +247,44 @@ impl Node {
                 }
                 rectangle::Display::Inline => {
                     (child.width, child.height) = child.position_children();
-                    child.height -= child.margin[0] + child.margin[2];
-
-                    let mut child_extents = child.get_extents();
-                    child_extents.height -= child.padding[0] - child.padding[2];
+                    child.height -=
+                        child.margin[0] + child.margin[2] + child.padding[0] + child.padding[2];
 
                     (child.x, child.y) = (
                         current_pos.0,
                         current_pos.1 - child.padding[0] - child.margin[0],
                     );
 
+                    let child_extents = child.get_extents();
                     current_pos.0 += child_extents.width;
                     total_size.0 += child_extents.width;
                     total_size.1 = (child.y + child_extents.height).max(total_size.1);
+                }
+                rectangle::Display::InlineBlock => {
+                    let s = child.position_children();
+                    child.width = match &child.style.width {
+                        None => s.0,
+                        Some(units) => units.to_px(&hor_context),
+                    };
 
-                    if current_pos.0 > width {
+                    child.height = match &child.style.height {
+                        None => s.1,
+                        Some(units) => units.to_px(&vert_context),
+                    };
+
+                    let child_extents = child.get_extents();
+
+                    if current_pos.0 + child_extents.width > width {
                         current_pos.0 = 0.0;
                         current_pos.1 += child_extents.height;
                     }
+
+                    (child.x, child.y) = current_pos;
+
+                    current_pos.0 += child_extents.width;
+                    total_size.0 += child_extents.width;
+                    total_size.1 = (child.y + child_extents.height).max(total_size.1);
                 }
-                rectangle::Display::InlineBlock => {}
                 rectangle::Display::Contents | rectangle::Display::None => {}
                 _ => {}
             }
