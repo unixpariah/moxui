@@ -115,10 +115,7 @@ impl Tree {
         height: f32,
     ) -> Result<(), PoisonError<RwLockWriteGuard<'_, (f32, f32)>>> {
         self.projection_uniform = buffers::ProjectionUniform::new(device, 0.0, width, 0.0, height);
-
-        let mut viewport = self.viewport.write()?;
-        viewport.0 = width;
-        viewport.1 = height;
+        *self.viewport.write()? = (width, height);
 
         return Ok(());
     }
@@ -142,7 +139,6 @@ impl Tree {
 
     pub fn finish(mut self) -> Self {
         self.position_children();
-
         self
     }
 }
@@ -203,11 +199,13 @@ impl Node {
     }
 
     pub fn position_children(&mut self) -> (f32, f32) {
-        let extents = self.get_extents();
-        let mut pos = (
-            extents.x + self.margin.left + self.padding.left,
-            extents.y + self.margin.top + self.padding.top,
+        let mut current_pos = (
+            self.x + self.margin[3] + self.padding[3],
+            self.y + self.margin[0] + self.padding[0],
         );
+
+        let mut total_size = (0.0, 0.0);
+        let width = self.width;
 
         let viewport = self.viewport.read().unwrap();
         let vert_context = Context {
@@ -219,23 +217,17 @@ impl Node {
             viewport: *viewport,
         };
 
+        let extents = self.get_extents();
         let mut children = collect_children(&mut self.children);
-        children
-            .iter_mut()
-            .for_each(|child| match child.style.display {
+        children.iter_mut().for_each(|child| {
+            (0..4).for_each(|i| {
+                child.padding[i] = child.style.padding[i].to_px(&hor_context);
+                child.margin[i] = child.style.margin[i].to_px(&hor_context);
+            });
+
+            match child.style.display {
                 rectangle::Display::Block => {
-                    child.margin.top = child.style.margin[0].to_px(&hor_context);
-                    child.margin.right = child.style.margin[1].to_px(&hor_context);
-                    child.margin.bottom = child.style.margin[2].to_px(&hor_context);
-                    child.margin.left = child.style.margin[3].to_px(&hor_context);
-
-                    child.padding.top = child.style.padding[0].to_px(&hor_context);
-                    child.padding.right = child.style.padding[1].to_px(&hor_context);
-                    child.padding.bottom = child.style.padding[2].to_px(&hor_context);
-                    child.padding.left = child.style.padding[3].to_px(&hor_context);
-
-                    child.x = pos.0;
-                    child.y = pos.1;
+                    (child.x, child.y) = (0.0, current_pos.1.max(total_size.1));
 
                     child.width = match &child.style.width {
                         None => extents.width,
@@ -243,17 +235,47 @@ impl Node {
                     };
 
                     child.height = match &child.style.height {
-                        None => child.position_children().1 - child.y,
+                        None => child.position_children().1,
                         Some(units) => units.to_px(&vert_context),
                     };
 
                     let child_extents = child.get_extents();
-                    pos.1 += child_extents.height;
+                    current_pos.0 = 0.0;
+                    current_pos.1 = child.y + child_extents.height;
+                    total_size.0 = child_extents.width.max(total_size.0);
+                    total_size.1 += child_extents.height;
                 }
+                rectangle::Display::Inline => {
+                    (child.width, child.height) = child.position_children();
+                    child.height -= child.margin[0] + child.margin[2];
+
+                    let mut child_extents = child.get_extents();
+                    child_extents.height -= child.padding[0] - child.padding[2];
+
+                    (child.x, child.y) = (
+                        current_pos.0,
+                        current_pos.1 - child.padding[0] - child.margin[0],
+                    );
+
+                    current_pos.0 += child_extents.width;
+                    total_size.0 += child_extents.width;
+                    total_size.1 = (child.y + child_extents.height).max(total_size.1);
+
+                    if current_pos.0 > width {
+                        current_pos.0 = 0.0;
+                        current_pos.1 += child_extents.height;
+                    }
+                }
+                rectangle::Display::InlineBlock => {}
                 rectangle::Display::Contents | rectangle::Display::None => {}
                 _ => {}
-            });
-        pos
+            }
+        });
+
+        (
+            total_size.0 + self.margin[3] + self.margin[1] + self.padding[3] + self.padding[1],
+            total_size.1 + self.margin[0] + self.margin[2] + self.padding[0] + self.padding[2],
+        )
     }
 
     pub fn add_child<F>(mut self, f: F) -> Self

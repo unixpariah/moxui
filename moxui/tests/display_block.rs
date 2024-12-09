@@ -8,8 +8,8 @@ use winit::{
     application::ApplicationHandler,
     error::EventLoopError,
     event::WindowEvent,
-    event_loop::ActiveEventLoop,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    keyboard::{Key, NamedKey},
     window::{Window, WindowId},
 };
 
@@ -67,6 +67,12 @@ impl<'window> ApplicationHandler for App<'window> {
                         .add_child(|item| {
                             item.set_background_color(1.0, 0.0, 0.0, 1.0)
                                 .set_size(Some(Units::Perc(50.0)), Some(Units::Px(50.0)))
+                                .set_margin(
+                                    Units::Px(0.0),
+                                    Units::Px(0.0),
+                                    Units::Px(50.0),
+                                    Units::Px(0.0),
+                                )
                         })
                         .add_child(|item| {
                             item.set_background_color(0.5, 0.5, 0.0, 1.0)
@@ -101,11 +107,36 @@ impl<'window> ApplicationHandler for App<'window> {
     ) {
         match event {
             WindowEvent::CloseRequested => {
+                let Some(wgpu_ctx) = self.wgpu_ctx.take() else {
+                    return;
+                };
+                drop(wgpu_ctx);
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
                 if let Some(wgpu_ctx) = &self.wgpu_ctx {
                     wgpu_ctx.draw();
+                }
+            }
+            WindowEvent::KeyboardInput {
+                device_id: _,
+                event,
+                is_synthetic: _,
+            } => {
+                if !event.state.is_pressed() {
+                    return;
+                }
+
+                let Key::Named(key) = event.logical_key else {
+                    return;
+                };
+
+                if key == NamedKey::Space {
+                    let Some(wgpu_ctx) = self.wgpu_ctx.take() else {
+                        return;
+                    };
+                    drop(wgpu_ctx);
+                    event_loop.exit();
                 }
             }
             _ => (),

@@ -23,8 +23,3 @@ harness = false
 name = "display_inline"
 path = "tests/display_inline.rs"
 harness = false
-
-[[test]]
-name = "display_inline_block"
-path = "tests/display_inline_block.rs"
-harness = false

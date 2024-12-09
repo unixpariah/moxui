@@ -1,18 +1,19 @@
 use crate::buffers;
 use calc_units::Units;
 
+pub enum Position {
+    Static,
+    Relative,
+    Absolute,
+    Fixed,
+    Sticky,
+    Inherit,
+}
+
 #[derive(PartialEq)]
 pub enum BoxSizing {
     ContentBox,
     BorderBox,
-}
-
-#[derive(Default)]
-pub struct Spacing {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32,
 }
 
 pub enum BorderStyle {
@@ -97,6 +98,7 @@ pub enum Display {
 }
 
 pub struct Style {
+    pub position: Position,
     pub display: Display,
     pub width: Option<Units>,
     pub height: Option<Units>,
@@ -108,6 +110,7 @@ pub struct Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
+            position: Position::Static,
             display: Display::Block,
             width: None,
             height: None,
@@ -124,8 +127,8 @@ pub struct Rectangle {
     pub width: f32,
     pub height: f32,
     pub background_color: [f32; 4],
-    pub margin: Spacing,
-    pub padding: Spacing,
+    pub margin: [f32; 4],
+    pub padding: [f32; 4],
     pub border: Border,
     pub outline: Outline,
     pub brightness: f32,
@@ -184,19 +187,19 @@ impl Rectangle {
         let (width, height) = match self.style.box_sizing {
             BoxSizing::ContentBox => (
                 self.width
-                    + self.padding.left
-                    + self.padding.right
+                    + self.padding[3]
+                    + self.padding[1]
                     + self.border.size.left
                     + self.border.size.right
-                    + self.margin.left
-                    + self.margin.right,
+                    + self.margin[3]
+                    + self.margin[1],
                 self.height
-                    + self.padding.top
-                    + self.padding.bottom
+                    + self.padding[0]
+                    + self.padding[2]
                     + self.border.size.top
                     + self.border.size.bottom
-                    + self.margin.top
-                    + self.margin.bottom,
+                    + self.margin[0]
+                    + self.margin[2],
             ),
             BoxSizing::BorderBox => (self.width, self.height),
         };
@@ -210,17 +213,17 @@ impl Rectangle {
     }
 
     pub fn get_instance(&self) -> buffers::Instance {
-        let x = self.x + self.margin.left - self.outline.width - self.outline.offset;
-        let y = self.y + self.margin.top - self.outline.width - self.outline.offset;
+        let x = self.x + self.margin[3] - self.outline.width - self.outline.offset;
+        let y = self.y + self.margin[0] - self.outline.width - self.outline.offset;
 
         let width = self.width
-            + self.padding.left
-            + self.padding.right
+            + self.padding[3]
+            + self.padding[1]
             + (self.outline.width + self.outline.offset) * 2.0;
 
         let height = self.height
-            + self.padding.top
-            + self.padding.bottom
+            + self.padding[0]
+            + self.padding[2]
             + (self.outline.width + self.outline.offset) * 2.0;
 
         let bg = self.background_color;
@@ -255,8 +258,8 @@ impl Default for Rectangle {
             y: 0.0,
             width: 0.0,
             height: 0.0,
-            margin: Spacing::default(),
-            padding: Spacing::default(),
+            margin: [0.0, 0.0, 0.0, 0.0],
+            padding: [0.0, 0.0, 0.0, 0.0],
             background_color: [0.0, 0.0, 0.0, 0.0],
             border: Border::default(),
             outline: Outline::default(),
