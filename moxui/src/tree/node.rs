@@ -49,12 +49,7 @@ impl Node {
     }
 
     pub fn set_border_size(mut self, top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        self.border.size = rectangle::BorderSize {
-            top,
-            right,
-            bottom,
-            left,
-        };
+        self.border.size = [top, right, bottom, left];
         self
     }
 
@@ -75,12 +70,7 @@ impl Node {
         bottom_right: f32,
         bottom_left: f32,
     ) -> Self {
-        self.border.radius = rectangle::BorderRadius {
-            top_left,
-            top_right,
-            bottom_right,
-            bottom_left,
-        };
+        self.border.radius = [top_left, top_right, bottom_right, bottom_left];
         self
     }
 

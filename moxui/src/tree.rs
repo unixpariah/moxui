@@ -206,6 +206,7 @@ impl Node {
 
         let mut total_size = (0.0, 0.0);
         let width = self.width;
+        let display = self.style.display;
 
         let viewport = self.viewport.read().unwrap();
         let vert_context = Context {
@@ -285,8 +286,15 @@ impl Node {
                     total_size.0 += child_extents.width;
                     total_size.1 = (child.y + child_extents.height).max(total_size.1);
                 }
+                rectangle::Display::Flex => {}
+                rectangle::Display::InlineFlex => {}
+                rectangle::Display::Grid => {}
+                rectangle::Display::InlineGrid => {}
+                rectangle::Display::Table => {}
+                rectangle::Display::InlineTable => {}
+                rectangle::Display::ListItem => {}
+                rectangle::Display::RunIn => {}
                 rectangle::Display::Contents | rectangle::Display::None => {}
-                _ => {}
             }
         });
 

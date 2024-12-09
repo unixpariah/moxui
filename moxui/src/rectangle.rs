@@ -1,5 +1,11 @@
+mod flexbox;
+
 use crate::buffers;
 use calc_units::Units;
+use flexbox::{
+    AlignContent, AlignItems, AlignSelf, FlexBasis, FlexDirection, FlexGrow, FlexShrink, FlexWrap,
+    JustifyContent, Order,
+};
 
 pub enum Position {
     Static,
@@ -7,7 +13,6 @@ pub enum Position {
     Absolute,
     Fixed,
     Sticky,
-    Inherit,
 }
 
 #[derive(PartialEq)]
@@ -29,42 +34,9 @@ pub enum BorderStyle {
     Hidden,
 }
 
-#[derive(Default)]
-pub struct BorderRadius {
-    pub top_left: f32,
-    pub top_right: f32,
-    pub bottom_left: f32,
-    pub bottom_right: f32,
-}
-
-impl BorderRadius {
-    pub fn to_array(&self) -> [f32; 4] {
-        [
-            self.top_left,
-            self.top_right,
-            self.bottom_left,
-            self.bottom_right,
-        ]
-    }
-}
-
-#[derive(Default)]
-pub struct BorderSize {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32,
-}
-
-impl BorderSize {
-    pub fn to_array(&self) -> [f32; 4] {
-        [self.top, self.right, self.bottom, self.left]
-    }
-}
-
 pub struct Border {
-    pub radius: BorderRadius,
-    pub size: BorderSize,
+    pub radius: [f32; 4],
+    pub size: [f32; 4],
     pub color: [f32; 4],
     pub style: BorderStyle,
 }
@@ -72,15 +44,15 @@ pub struct Border {
 impl Default for Border {
     fn default() -> Self {
         Self {
-            radius: BorderRadius::default(),
+            radius: [0.0, 0.0, 0.0, 0.0],
             color: [0.0, 0.0, 0.0, 0.0],
-            size: BorderSize::default(),
+            size: [0.0, 0.0, 0.0, 0.0],
             style: BorderStyle::Solid,
         }
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum Display {
     Inline,
     Block,
@@ -93,8 +65,8 @@ pub enum Display {
     Table,
     InlineTable,
     ListItem,
-    None,
     RunIn,
+    None,
 }
 
 pub struct Style {
@@ -105,6 +77,16 @@ pub struct Style {
     pub margin: [Units; 4],
     pub padding: [Units; 4],
     pub box_sizing: BoxSizing,
+    pub flex_direction: FlexDirection,
+    pub flex_wrap: FlexWrap,
+    pub justify_content: JustifyContent,
+    pub align_items: AlignItems,
+    pub align_content: AlignContent,
+    pub align_self: AlignSelf,
+    pub order: Order,
+    pub flex_grow: FlexGrow,
+    pub flex_shrink: FlexShrink,
+    pub flex_basis: FlexBasis,
 }
 
 impl Default for Style {
@@ -117,6 +99,16 @@ impl Default for Style {
             margin: [const { Units::Px(0.0) }; 4],
             padding: [const { Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
+            flex_direction: FlexDirection::Row,
+            flex_wrap: FlexWrap::Nowrap,
+            justify_content: JustifyContent::FlexStart,
+            align_items: AlignItems::Stretch,
+            align_content: AlignContent::Stretch,
+            align_self: AlignSelf::Auto,
+            order: Order(0),
+            flex_grow: FlexGrow(0),
+            flex_shrink: FlexShrink(1),
+            flex_basis: FlexBasis::Auto,
         }
     }
 }
@@ -189,15 +181,15 @@ impl Rectangle {
                 self.width
                     + self.padding[3]
                     + self.padding[1]
-                    + self.border.size.left
-                    + self.border.size.right
+                    + self.border.size[3]
+                    + self.border.size[1]
                     + self.margin[3]
                     + self.margin[1],
                 self.height
                     + self.padding[0]
                     + self.padding[2]
-                    + self.border.size.top
-                    + self.border.size.bottom
+                    + self.border.size[0]
+                    + self.border.size[2]
                     + self.margin[0]
                     + self.margin[2],
             ),
@@ -233,8 +225,8 @@ impl Rectangle {
         buffers::Instance {
             dimensions: [x, y, width, height],
             color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
-            border_radius: self.border.radius.to_array(),
-            border_size: self.border.size.to_array(),
+            border_radius: self.border.radius,
+            border_size: self.border.size,
             border_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
             outline: [self.outline.width, self.outline.offset],
             outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
