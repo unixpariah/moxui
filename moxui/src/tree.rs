@@ -176,7 +176,7 @@ impl DerefMut for Node {
 }
 
 // Recursively collect children with display: contents; parent and temporarily 'reparent' them
-fn collect_children(children: &mut Vec<Node>) -> Vec<&mut Node> {
+pub fn collect_children(children: &mut Vec<Node>) -> Vec<&mut Node> {
     children
         .iter_mut()
         .flat_map(|child| {
@@ -206,7 +206,6 @@ impl Node {
 
         let mut total_size = (0.0, 0.0);
         let width = self.width;
-        let display = self.style.display;
 
         let viewport = self.viewport.read().unwrap();
         let vert_context = Context {
