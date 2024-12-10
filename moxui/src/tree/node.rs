@@ -1,4 +1,4 @@
-use crate::rectangle;
+use crate::rectangle::{self};
 use calc_units::Units;
 
 use super::Node;
@@ -16,6 +16,17 @@ use super::Node;
 // hue-rotate        | [x]                   | [ ]
 
 impl Node {
+    pub fn set_coordinates(mut self, x: Units, y: Units) -> Self {
+        self.style.x = x;
+        self.style.y = y;
+        self
+    }
+
+    pub fn set_position(mut self, position: rectangle::Position) -> Self {
+        self.style.position = position;
+        self
+    }
+
     pub fn set_display(mut self, display: rectangle::Display) -> Self {
         self.style.display = display;
         self

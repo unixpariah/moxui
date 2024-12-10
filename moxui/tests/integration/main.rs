@@ -1,11 +1,15 @@
 mod display_block;
 mod display_inline;
 mod display_inline_block;
+mod position_absolute;
+mod position_relative;
 
 use display_block::display_block;
 use display_inline::display_inline;
 use display_inline_block::display_inline_block;
 use moxui::tree;
+use position_absolute::position_absolute;
+use position_relative::position_relative;
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
@@ -43,6 +47,8 @@ impl<'window> ApplicationHandler for App<'window> {
             wgpu_ctx.trees.push(display_block(&wgpu_ctx));
             wgpu_ctx.trees.push(display_inline(&wgpu_ctx));
             wgpu_ctx.trees.push(display_inline_block(&wgpu_ctx));
+            wgpu_ctx.trees.push(position_relative(&wgpu_ctx));
+            wgpu_ctx.trees.push(position_absolute(&wgpu_ctx));
 
             self.wgpu_ctx = Some(wgpu_ctx);
         }
@@ -109,6 +115,7 @@ impl<'window> ApplicationHandler for App<'window> {
     }
 }
 
+#[allow(dead_code)]
 pub struct WgpuCtx<'window> {
     pub index: usize,
     pub surface: wgpu::Surface<'window>,

@@ -295,6 +295,21 @@ impl Node {
                 rectangle::Display::RunIn => {}
                 rectangle::Display::Contents | rectangle::Display::None => {}
             }
+
+            // TODO: so do those, implement scrolling etc
+            match child.style.position {
+                rectangle::Position::Static => {}
+                rectangle::Position::Relative => {
+                    child.x += child.style.x.to_px(&hor_context);
+                    child.y += child.style.y.to_px(&vert_context);
+                }
+                rectangle::Position::Fixed => {}
+                rectangle::Position::Sticky => {}
+                rectangle::Position::Absolute => {
+                    child.x = child.style.x.to_px(&hor_context);
+                    child.y = child.style.y.to_px(&vert_context);
+                }
+            }
         });
 
         (

@@ -7,12 +7,19 @@ use flexbox::{
     JustifyContent, Order,
 };
 
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Position {
     Static,
     Relative,
     Absolute,
     Fixed,
     Sticky,
+}
+
+pub enum Float {
+    Left,
+    Right,
+    None,
 }
 
 #[derive(PartialEq)]
@@ -71,7 +78,10 @@ pub enum Display {
 
 pub struct Style {
     pub position: Position,
+    pub float: Float,
     pub display: Display,
+    pub x: Units,
+    pub y: Units,
     pub width: Option<Units>,
     pub height: Option<Units>,
     pub margin: [Units; 4],
@@ -93,7 +103,10 @@ impl Default for Style {
     fn default() -> Self {
         Self {
             position: Position::Static,
+            float: Float::None,
             display: Display::Block,
+            x: Units::Px(0.0),
+            y: Units::Px(0.0),
             width: None,
             height: None,
             margin: [const { Units::Px(0.0) }; 4],
@@ -176,6 +189,15 @@ pub struct Extents {
 
 impl Rectangle {
     pub fn get_extents(&self) -> Extents {
+        if self.style.position == Position::Absolute {
+            return Extents {
+                x: self.x,
+                y: self.y,
+                width: 0.0,
+                height: 0.0,
+            };
+        }
+
         let (width, height) = match self.style.box_sizing {
             BoxSizing::ContentBox => (
                 self.width
@@ -223,7 +245,7 @@ impl Rectangle {
         let bc = self.border.color;
 
         buffers::Instance {
-            dimensions: [x, y, width, height],
+            dimensions: [x + self.translate[0], y + self.translate[1], width, height],
             color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
             border_radius: self.border.radius,
             border_size: self.border.size,
@@ -234,7 +256,6 @@ impl Rectangle {
             grayscale: self.grayscale,
             scale: self.scale,
             rotation: self.rotate,
-            translate: self.translate,
             skew: self.skew,
             sepia: self.sepia,
             hue_rotate: self.hue_rotate,

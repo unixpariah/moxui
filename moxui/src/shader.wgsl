@@ -50,10 +50,9 @@ struct InstanceInput {
     @location(9) grayscale: f32,
     @location(10) scale: vec2<f32>,
     @location(11) rotation: f32,
-    @location(12) translate: vec2<f32>,
-    @location(13) skew: vec2<f32>,
-    @location(14) sepia: f32,
-    @location(15) hue_rotate: f32,
+    @location(12) skew: vec2<f32>,
+    @location(13) sepia: f32,
+    @location(14) hue_rotate: f32,
 }
 
 fn rotation_matrix(angle: f32) -> mat2x2<f32> {
@@ -85,7 +84,7 @@ fn vs_main(
     let outline_offset = vec2<f32>(instance.outline.y, instance.outline.y) * instance.scale;
 
     let scaled_dimensions = vec4<f32>(
-        (instance.dimensions.xy + instance.translate) * instance.scale,
+        instance.dimensions.xy * instance.scale,
         instance.dimensions.zw * instance.scale
     );
     let position = model.position * scaled_dimensions.zw + scaled_dimensions.xy;
