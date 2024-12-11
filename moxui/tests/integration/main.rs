@@ -3,6 +3,7 @@ mod display_inline;
 mod display_inline_block;
 mod position_absolute;
 mod position_relative;
+mod scroll;
 
 use display_block::display_block;
 use display_inline::display_inline;
@@ -10,11 +11,13 @@ use display_inline_block::display_inline_block;
 use moxui::tree;
 use position_absolute::position_absolute;
 use position_relative::position_relative;
+use scroll::scroll;
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
+    dpi::{PhysicalPosition, PhysicalSize},
     error::EventLoopError,
-    event::WindowEvent,
+    event::{MouseScrollDelta, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
     window::{Window, WindowId},
@@ -49,6 +52,7 @@ impl<'window> ApplicationHandler for App<'window> {
             wgpu_ctx.trees.push(display_inline_block(&wgpu_ctx));
             wgpu_ctx.trees.push(position_relative(&wgpu_ctx));
             wgpu_ctx.trees.push(position_absolute(&wgpu_ctx));
+            wgpu_ctx.trees.push(scroll(&wgpu_ctx));
 
             self.wgpu_ctx = Some(wgpu_ctx);
         }
@@ -109,6 +113,30 @@ impl<'window> ApplicationHandler for App<'window> {
 
                 wgpu_ctx.draw();
                 self.wgpu_ctx = Some(wgpu_ctx);
+            }
+            WindowEvent::MouseWheel {
+                device_id: _,
+                delta,
+                phase: _,
+            } => {
+                let Some(ref mut wgpu_ctx) = self.wgpu_ctx else {
+                    return;
+                };
+
+                if let MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) = delta {
+                    let tree = &mut wgpu_ctx.trees[wgpu_ctx.index];
+                    tree.scroll(&wgpu_ctx.device, x as f32, y as f32);
+                    wgpu_ctx.draw();
+                }
+            }
+            WindowEvent::Resized(PhysicalSize { width, height }) => {
+                let Some(ref mut wgpu_ctx) = self.wgpu_ctx else {
+                    return;
+                };
+
+                let tree = &mut wgpu_ctx.trees[wgpu_ctx.index];
+                tree.set_viewport(&wgpu_ctx.device, width as f32, height as f32);
+                wgpu_ctx.draw();
             }
             _ => (),
         }
