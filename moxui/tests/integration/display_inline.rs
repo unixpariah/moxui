@@ -5,7 +5,7 @@ use moxui::tree;
 pub fn display_inline(wgpu_ctx: &WgpuCtx) -> tree::Tree {
     moxui::tree::Tree::new(&wgpu_ctx.device, &wgpu_ctx.surface_config, |surface| {
         surface
-            .set_background_color(0.0, 0.0, 0.0, 0.0)
+            .set_background_color(0.1, 0.3, 1.0, 1.0)
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::Inline)
                     .set_background_color(0.0, 0.0, 1.0, 1.0)
