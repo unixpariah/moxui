@@ -37,7 +37,7 @@ pub fn display_inline_block(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                     )
             })
             .add_child(|item| {
-                item.set_background_color(0.0, 1.0, 0.0, 1.0)
+                item.set_background_color(1.0, 0.0, 1.0, 1.0)
                     .set_size(None, Some(Units::Px(50.0)))
             })
             .add_child(|item| {

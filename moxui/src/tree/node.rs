@@ -59,8 +59,8 @@ impl Node {
         self
     }
 
-    pub fn set_border_size(mut self, top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        self.border.size = [top, right, bottom, left];
+    pub fn set_border_size(mut self, top: Units, right: Units, bottom: Units, left: Units) -> Self {
+        self.style.border = [top, right, bottom, left];
         self
     }
 

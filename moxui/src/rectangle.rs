@@ -1,5 +1,7 @@
 mod flexbox;
 
+use std::{rc::Rc, sync::RwLock};
+
 use crate::buffers;
 use calc_units::Units;
 use flexbox::{
@@ -86,6 +88,7 @@ pub struct Style {
     pub height: Option<Units>,
     pub margin: [Units; 4],
     pub padding: [Units; 4],
+    pub border: [Units; 4],
     pub box_sizing: BoxSizing,
     pub flex_direction: FlexDirection,
     pub flex_wrap: FlexWrap,
@@ -111,6 +114,7 @@ impl Default for Style {
             height: None,
             margin: [const { Units::Px(0.0) }; 4],
             padding: [const { Units::Px(0.0) }; 4],
+            border: [const { Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
             flex_direction: FlexDirection::Row,
             flex_wrap: FlexWrap::Nowrap,
@@ -124,6 +128,11 @@ impl Default for Style {
             flex_basis: FlexBasis::Auto,
         }
     }
+}
+
+pub struct State {
+    pub viewport: (f32, f32),
+    pub scroll: (f32, f32),
 }
 
 pub struct Rectangle {
@@ -149,6 +158,130 @@ pub struct Rectangle {
     pub translate: [f32; 2],
 
     pub style: Style,
+
+    pub state: Rc<RwLock<State>>,
+}
+
+impl Rectangle {
+    pub fn new(state: Rc<RwLock<State>>) -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+            margin: [0.0, 0.0, 0.0, 0.0],
+            padding: [0.0, 0.0, 0.0, 0.0],
+            background_color: [0.0, 0.0, 0.0, 0.0],
+            border: Border::default(),
+            outline: Outline::default(),
+            brightness: 0.0,
+            contrast: 1.0,
+            grayscale: 0.0,
+            hue_rotate: 0.0,
+            invert: 0.0,
+            saturate: 1.0,
+            sepia: 0.0,
+            scale: [1.0, 1.0],
+            rotate: 0.0,
+            skew: [0.0, 0.0],
+            translate: [0.0, 0.0],
+
+            style: Style::default(),
+
+            state,
+        }
+    }
+
+    pub fn get_extents(&self) -> Extents {
+        if self.style.position == Position::Absolute {
+            return Extents {
+                x: self.x,
+                y: self.y,
+                width: 0.0,
+                height: 0.0,
+            };
+        }
+
+        if self.style.position == Position::Fixed {
+            let state = self.state.clone();
+            let state = state.read().unwrap();
+            return Extents {
+                x: self.x + state.scroll.0,
+                y: self.y + state.scroll.1,
+                width: 0.0,
+                height: 0.0,
+            };
+        }
+
+        let (width, height) = match self.style.box_sizing {
+            BoxSizing::ContentBox => (
+                self.width
+                    + self.padding[3]
+                    + self.padding[1]
+                    + self.border.size[3]
+                    + self.border.size[1]
+                    + self.margin[3]
+                    + self.margin[1],
+                self.height
+                    + self.padding[0]
+                    + self.padding[2]
+                    + self.border.size[0]
+                    + self.border.size[2]
+                    + self.margin[0]
+                    + self.margin[2],
+            ),
+            BoxSizing::BorderBox => (self.width, self.height),
+        };
+
+        Extents {
+            x: self.x,
+            y: self.y,
+            width,
+            height,
+        }
+    }
+
+    pub fn get_instance(&self) -> buffers::Instance {
+        let extents = self.get_extents();
+
+        let x = extents.x + self.margin[3] - self.outline.width - self.outline.offset;
+        let y = extents.y + self.margin[0] - self.outline.width - self.outline.offset;
+
+        let width = self.width
+            + self.padding[3]
+            + self.padding[1]
+            + self.border.size[3]
+            + self.border.size[1]
+            + (self.outline.width + self.outline.offset) * 2.0;
+
+        let height = self.height
+            + self.padding[0]
+            + self.padding[2]
+            + self.border.size[0]
+            + self.border.size[2]
+            + (self.outline.width + self.outline.offset) * 2.0;
+
+        let bg = self.background_color;
+        let oc = self.outline.color;
+        let bc = self.border.color;
+
+        buffers::Instance {
+            dimensions: [x + self.translate[0], y + self.translate[1], width, height],
+            color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
+            border_radius: self.border.radius,
+            border_size: self.border.size,
+            border_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
+            outline: [self.outline.width, self.outline.offset],
+            outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
+            filter: [self.brightness, self.saturate, self.contrast, self.invert],
+            grayscale: self.grayscale,
+            scale: self.scale,
+            rotation: self.rotate,
+            skew: self.skew,
+            sepia: self.sepia,
+            hue_rotate: self.hue_rotate,
+        }
+    }
 }
 
 pub enum OutlineStyle {
@@ -185,108 +318,4 @@ pub struct Extents {
     pub y: f32,
     pub width: f32,
     pub height: f32,
-}
-
-impl Rectangle {
-    pub fn get_extents(&self) -> Extents {
-        if self.style.position == Position::Absolute {
-            return Extents {
-                x: self.x,
-                y: self.y,
-                width: 0.0,
-                height: 0.0,
-            };
-        }
-
-        let (width, height) = match self.style.box_sizing {
-            BoxSizing::ContentBox => (
-                self.width
-                    + self.padding[3]
-                    + self.padding[1]
-                    + self.border.size[3]
-                    + self.border.size[1]
-                    + self.margin[3]
-                    + self.margin[1],
-                self.height
-                    + self.padding[0]
-                    + self.padding[2]
-                    + self.border.size[0]
-                    + self.border.size[2]
-                    + self.margin[0]
-                    + self.margin[2],
-            ),
-            BoxSizing::BorderBox => (self.width, self.height),
-        };
-
-        Extents {
-            x: self.x,
-            y: self.y,
-            width,
-            height,
-        }
-    }
-
-    pub fn get_instance(&self) -> buffers::Instance {
-        let x = self.x + self.margin[3] - self.outline.width - self.outline.offset;
-        let y = self.y + self.margin[0] - self.outline.width - self.outline.offset;
-
-        let width = self.width
-            + self.padding[3]
-            + self.padding[1]
-            + (self.outline.width + self.outline.offset) * 2.0;
-
-        let height = self.height
-            + self.padding[0]
-            + self.padding[2]
-            + (self.outline.width + self.outline.offset) * 2.0;
-
-        let bg = self.background_color;
-        let oc = self.outline.color;
-        let bc = self.border.color;
-
-        buffers::Instance {
-            dimensions: [x + self.translate[0], y + self.translate[1], width, height],
-            color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
-            border_radius: self.border.radius,
-            border_size: self.border.size,
-            border_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
-            outline: [self.outline.width, self.outline.offset],
-            outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
-            filter: [self.brightness, self.saturate, self.contrast, self.invert],
-            grayscale: self.grayscale,
-            scale: self.scale,
-            rotation: self.rotate,
-            skew: self.skew,
-            sepia: self.sepia,
-            hue_rotate: self.hue_rotate,
-        }
-    }
-}
-
-impl Default for Rectangle {
-    fn default() -> Self {
-        Self {
-            style: Style::default(),
-            x: 0.0,
-            y: 0.0,
-            width: 0.0,
-            height: 0.0,
-            margin: [0.0, 0.0, 0.0, 0.0],
-            padding: [0.0, 0.0, 0.0, 0.0],
-            background_color: [0.0, 0.0, 0.0, 0.0],
-            border: Border::default(),
-            outline: Outline::default(),
-            brightness: 0.0,
-            contrast: 1.0,
-            grayscale: 0.0,
-            hue_rotate: 0.0,
-            invert: 0.0,
-            saturate: 1.0,
-            sepia: 0.0,
-            scale: [1.0, 1.0],
-            rotate: 0.0,
-            skew: [0.0, 0.0],
-            translate: [0.0, 0.0],
-        }
-    }
 }

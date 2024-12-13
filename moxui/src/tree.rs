@@ -1,8 +1,15 @@
 mod node;
 
-use crate::{buffers, rectangle};
+use crate::{
+    buffers,
+    rectangle::{self, State},
+};
 use calc_units::Context;
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    rc::Rc,
+    sync::RwLock,
+};
 
 pub struct Tree {
     render_pipeline: wgpu::RenderPipeline,
@@ -10,8 +17,6 @@ pub struct Tree {
     index_buffer: buffers::IndexBuffer,
     generic_rect: buffers::VertexBuffer,
     node: Node,
-    viewport: (f32, f32),
-    scroll: (f32, f32),
 }
 
 impl Tree {
@@ -19,7 +24,12 @@ impl Tree {
     where
         F: Fn(Node) -> Node,
     {
-        let mut node = Node::new();
+        let state = State {
+            viewport: (config.width as f32, config.height as f32),
+            scroll: (0.0, 0.0),
+        };
+
+        let mut node = Node::new(Rc::new(RwLock::new(state)));
         node.width = config.width as f32;
         node.height = config.height as f32;
         let node = f(node);
@@ -101,30 +111,40 @@ impl Tree {
             generic_rect: buffers::VertexBuffer::new(device, &generic_rect_vertices),
             projection_uniform,
             node,
-            viewport: (config.width as f32, config.height as f32),
-            scroll: (0.0, 0.0),
         }
     }
 
     pub fn scroll(&mut self, device: &wgpu::Device, x: f32, y: f32) {
-        let new_x = self.scroll.0 + x;
-        let new_y = self.scroll.1 + y;
+        let state = self.state.clone();
+        let mut state = state.write().unwrap();
 
-        self.scroll.0 = new_x.clamp(0.0, self.width - self.viewport.0);
-        self.scroll.1 = new_y.clamp(0.0, self.height - self.viewport.1);
+        let new_x = state.scroll.0 + x;
+        let new_y = state.scroll.1 + y;
 
-        self.set_viewport(device, self.viewport.0, self.viewport.1);
+        state.scroll.0 = new_x.clamp(0.0, self.width - state.viewport.0);
+        state.scroll.1 = new_y.clamp(0.0, self.height - state.viewport.1);
+
+        self.projection_uniform = buffers::ProjectionUniform::new(
+            device,
+            state.scroll.0,
+            state.scroll.0 + state.viewport.0,
+            state.scroll.1,
+            state.scroll.1 + state.viewport.1,
+        );
     }
 
     pub fn set_viewport(&mut self, device: &wgpu::Device, width: f32, height: f32) {
+        let state = self.state.clone();
+        let mut state = state.write().unwrap();
+
         self.projection_uniform = buffers::ProjectionUniform::new(
             device,
-            self.scroll.0,
-            self.scroll.0 + width,
-            self.scroll.1,
-            self.scroll.1 + height,
+            state.scroll.0,
+            state.scroll.0 + width,
+            state.scroll.1,
+            state.scroll.1 + height,
         );
-        self.viewport = (width, height);
+        state.viewport = (width, height);
     }
 
     pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
@@ -145,8 +165,7 @@ impl Tree {
     }
 
     pub fn finish(mut self) -> Self {
-        let viewport = self.viewport;
-        let a = self.position_children(viewport);
+        let a = self.position_children();
         self.width = self.width.max(a.0);
         self.height = self.height.max(a.1);
         self
@@ -199,14 +218,17 @@ pub fn collect_children(children: &mut Vec<Node>) -> Vec<&mut Node> {
 }
 
 impl Node {
-    pub fn new() -> Self {
+    pub fn new(state: Rc<RwLock<State>>) -> Self {
         return Self {
-            data: rectangle::Rectangle::default(),
+            data: rectangle::Rectangle::new(state),
             children: Vec::new(),
         };
     }
 
-    pub fn position_children(&mut self, viewport: (f32, f32)) -> (f32, f32) {
+    pub fn position_children(&mut self) -> (f32, f32) {
+        let state = self.state.clone();
+        let state = state.read().unwrap();
+
         let mut current_pos = (
             self.x + self.margin[3] + self.padding[3],
             self.y + self.margin[0] + self.padding[0],
@@ -217,11 +239,11 @@ impl Node {
 
         let vert_context = Context {
             parent_size: self.height,
-            viewport,
+            viewport: state.viewport,
         };
         let hor_context = Context {
             parent_size: self.width,
-            viewport,
+            viewport: state.viewport,
         };
 
         let extents = self.get_extents();
@@ -230,6 +252,7 @@ impl Node {
             (0..4).for_each(|i| {
                 child.padding[i] = child.style.padding[i].to_px(&hor_context);
                 child.margin[i] = child.style.margin[i].to_px(&hor_context);
+                child.border.size[i] = child.style.border[i].to_px(&hor_context);
             });
 
             match child.style.display {
@@ -242,7 +265,7 @@ impl Node {
                     };
 
                     child.height = match &child.style.height {
-                        None => child.position_children(viewport).1,
+                        None => child.position_children().1,
                         Some(units) => units.to_px(&vert_context),
                     };
 
@@ -253,22 +276,25 @@ impl Node {
                     total_size.1 += child_extents.height;
                 }
                 rectangle::Display::Inline => {
-                    (child.width, child.height) = child.position_children(viewport);
+                    (child.width, child.height) = child.position_children();
                     child.height -=
                         child.margin[0] + child.margin[2] + child.padding[0] + child.padding[2];
 
-                    (child.x, child.y) = (
-                        current_pos.0,
-                        current_pos.1 - child.padding[0] - child.margin[0],
-                    );
-
                     let child_extents = child.get_extents();
+
+                    if current_pos.0 + child_extents.width > width && child_extents.width < width {
+                        current_pos.0 = 0.0;
+                        current_pos.1 += child_extents.height;
+                    }
+
+                    (child.x, child.y) = current_pos;
+
                     current_pos.0 += child_extents.width;
-                    total_size.0 = (current_pos.0).max(total_size.0);
-                    total_size.1 = (current_pos.1 + child_extents.height).max(total_size.1);
+                    total_size.0 = current_pos.0.max(total_size.0);
+                    total_size.1 = (current_pos.1 + child.height).max(total_size.1);
                 }
                 rectangle::Display::InlineBlock => {
-                    let s = child.position_children(viewport);
+                    let s = child.position_children();
                     child.width = match &child.style.width {
                         None => s.0,
                         Some(units) => units.to_px(&hor_context),
@@ -289,8 +315,8 @@ impl Node {
                     (child.x, child.y) = current_pos;
 
                     current_pos.0 += child_extents.width;
-                    total_size.0 = (current_pos.0).max(total_size.0);
-                    total_size.1 = (current_pos.1 + child_extents.height).max(total_size.1);
+                    total_size.0 = current_pos.0.max(total_size.0);
+                    total_size.1 = (current_pos.1 + child.height).max(total_size.1);
                 }
                 rectangle::Display::Flex => {}
                 rectangle::Display::InlineFlex => {}
@@ -303,14 +329,16 @@ impl Node {
                 rectangle::Display::Contents | rectangle::Display::None => {}
             }
 
-            // TODO: so do those, implement scrolling etc
             match child.style.position {
                 rectangle::Position::Static => {}
                 rectangle::Position::Relative => {
                     child.x += child.style.x.to_px(&hor_context);
                     child.y += child.style.y.to_px(&vert_context);
                 }
-                rectangle::Position::Fixed => {}
+                rectangle::Position::Fixed => {
+                    child.x = child.style.x.to_px(&hor_context);
+                    child.y = child.style.y.to_px(&hor_context);
+                }
                 rectangle::Position::Sticky => {}
                 rectangle::Position::Absolute => {
                     child.x = child.style.x.to_px(&hor_context);
@@ -329,7 +357,7 @@ impl Node {
     where
         F: Fn(Node) -> Node,
     {
-        let node = f(Node::new());
+        let node = f(Node::new(self.state.clone()));
         self.children.push(node);
 
         self

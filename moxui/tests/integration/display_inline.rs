@@ -131,7 +131,7 @@ pub fn display_inline(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                         Units::Px(100.0),
                     )
                     .set_margin(
-                        Units::Px(100.0),
+                        Units::Px(0.0),
                         Units::Px(10.0),
                         Units::Px(0.0),
                         Units::Px(10.0),
