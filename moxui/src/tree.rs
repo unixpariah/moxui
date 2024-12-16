@@ -282,16 +282,16 @@ impl Node {
 
                     let child_extents = child.get_extents();
 
-                    if current_pos.0 + child_extents.width > width && child_extents.width < width {
+                    if current_pos.0 + child_extents.width >= width {
                         current_pos.0 = 0.0;
-                        current_pos.1 += child_extents.height;
+                        current_pos.1 = total_size.1;
                     }
 
                     (child.x, child.y) = current_pos;
 
                     current_pos.0 += child_extents.width;
                     total_size.0 = current_pos.0.max(total_size.0);
-                    total_size.1 = (current_pos.1 + child.height).max(total_size.1);
+                    total_size.1 = (current_pos.1 + child_extents.height).max(total_size.1);
                 }
                 rectangle::Display::InlineBlock => {
                     let s = child.position_children();
@@ -309,14 +309,14 @@ impl Node {
 
                     if current_pos.0 + child_extents.width > width && child_extents.width < width {
                         current_pos.0 = 0.0;
-                        current_pos.1 += child_extents.height;
+                        current_pos.1 = total_size.1;
                     }
 
                     (child.x, child.y) = current_pos;
 
                     current_pos.0 += child_extents.width;
                     total_size.0 = current_pos.0.max(total_size.0);
-                    total_size.1 = (current_pos.1 + child.height).max(total_size.1);
+                    total_size.1 = (current_pos.1 + child_extents.height).max(total_size.1);
                 }
                 rectangle::Display::Flex => {}
                 rectangle::Display::InlineFlex => {}
