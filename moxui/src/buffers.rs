@@ -1,4 +1,7 @@
-use crate::math::{self, Matrix};
+use crate::{
+    math::{self, Matrix},
+    rectangle::InstanceData,
+};
 use std::{
     ops::{Deref, RangeBounds},
     rc::Rc,
@@ -66,7 +69,7 @@ pub struct VertexBuffer(Buffer<Vertex>);
 
 impl VertexBuffer {
     pub fn new(device: &wgpu::Device, vertices: &[Vertex]) -> Self {
-        VertexBuffer(Buffer::new(
+        Self(Buffer::new(
             device,
             wgpu::BufferUsages::VERTEX,
             vertices.into(),
@@ -85,7 +88,7 @@ pub struct IndexBuffer(Buffer<u16>);
 
 impl IndexBuffer {
     pub fn new(device: &wgpu::Device, indices: &[u16]) -> Self {
-        IndexBuffer(Buffer::new(device, wgpu::BufferUsages::INDEX, indices))
+        Self(Buffer::new(device, wgpu::BufferUsages::INDEX, indices))
     }
 }
 
@@ -113,10 +116,11 @@ pub struct Instance {
     pub skew: [f32; 2],
     pub sepia: f32,
     pub hue_rotate: f32,
+    pub index: u32,
 }
 
 impl Instance {
-    const ATTRIBS: [wgpu::VertexAttribute; 14] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 15] = wgpu::vertex_attr_array![
         1 => Float32x4,
         2 => Float32x4,
         3 => Float32x4,
@@ -131,6 +135,7 @@ impl Instance {
         12 => Float32x2,
         13 => Float32,
         14 => Float32,
+        15 => Uint32,
     ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -146,7 +151,7 @@ pub struct InstanceBuffer(Buffer<Instance>);
 
 impl InstanceBuffer {
     pub fn new(device: &wgpu::Device, instances: &[Instance]) -> InstanceBuffer {
-        InstanceBuffer(Buffer::new(device, wgpu::BufferUsages::VERTEX, instances))
+        Self(Buffer::new(device, wgpu::BufferUsages::VERTEX, instances))
     }
 }
 
@@ -158,8 +163,8 @@ impl Deref for InstanceBuffer {
 }
 
 pub struct ProjectionUniform {
-    pub buffer: wgpu::Buffer,
     pub projection: math::Mat4,
+    pub buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
@@ -169,7 +174,7 @@ impl ProjectionUniform {
         let projection = math::Mat4::projection(left, right, top, bottom);
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Buffer"),
+            label: Some("Uniform buffer"),
             usage: wgpu::BufferUsages::UNIFORM,
             contents: bytemuck::cast_slice(&projection),
         });
@@ -201,6 +206,51 @@ impl ProjectionUniform {
             projection,
             bind_group,
             bind_group_layout,
+        }
+    }
+}
+
+pub struct StorageBuffer {
+    pub buffer: wgpu::Buffer,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+    pub bind_group: wgpu::BindGroup,
+}
+
+impl StorageBuffer {
+    pub fn new(device: &wgpu::Device, instance_data: &[InstanceData]) -> Self {
+        let storage_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Storage buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Bind Group Layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 1,
+                resource: storage_buffer.as_entire_binding(),
+            }],
+            label: Some("Instance data buffer"),
+        });
+
+        Self {
+            buffer: storage_buffer,
+            bind_group_layout,
+            bind_group,
         }
     }
 }

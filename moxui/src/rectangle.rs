@@ -9,6 +9,33 @@ use flexbox::{
     JustifyContent, Order,
 };
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct InstanceData {
+    pos: [f32; 2],
+    rect_size: [f32; 2],
+    rect_color: [f32; 4],
+    border_radius: [f32; 4],
+    border_size: [f32; 4],
+    border_top_color: [f32; 4],
+    border_right_color: [f32; 4],
+    border_bottom_color: [f32; 4],
+    border_left_color: [f32; 4],
+    outline_width: f32,
+    outline_offset: f32,
+    outline_color: [f32; 4],
+    scale: [f32; 2],
+    skew: [f32; 2],
+    invert: f32,
+    rotation: f32,
+    brightness: f32,
+    saturate: f32,
+    contrast: f32,
+    grayscale: f32,
+    sepia: f32,
+    hue_rotate: f32,
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Position {
     Static,
@@ -241,11 +268,65 @@ impl Rectangle {
         }
     }
 
-    pub fn get_instance(&self) -> buffers::Instance {
+    pub fn get_instance_data(&self) -> InstanceData {
         let extents = self.get_extents();
 
-        let x = extents.x + self.margin[3] - self.outline.width - self.outline.offset;
-        let y = extents.y + self.margin[0] - self.outline.width - self.outline.offset;
+        let x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
+            + self.translate[0];
+        let y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
+            + self.translate[1];
+
+        let width = self.width
+            + self.padding[3]
+            + self.padding[1]
+            + self.border.size[3]
+            + self.border.size[1]
+            + (self.outline.width + self.outline.offset) * 2.0;
+
+        let height = self.height
+            + self.padding[0]
+            + self.padding[2]
+            + self.border.size[0]
+            + self.border.size[2]
+            + (self.outline.width + self.outline.offset) * 2.0;
+
+        let bg = self.background_color;
+        let oc = self.outline.color;
+        let bc = self.border.color;
+
+        InstanceData {
+            pos: [x, y],
+            rect_size: [width, height],
+            rect_color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
+            border_radius: self.border.radius,
+            border_size: self.border.size,
+            border_top_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
+            border_bottom_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
+            border_left_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
+            border_right_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
+            outline_width: self.outline.width,
+            outline_offset: self.outline.offset,
+            outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
+            brightness: self.brightness,
+            saturate: self.saturate,
+            contrast: self.contrast,
+            invert: self.invert,
+            grayscale: self.grayscale,
+            scale: self.scale,
+            rotation: self.rotate,
+            skew: self.skew,
+            sepia: self.sepia,
+            hue_rotate: self.hue_rotate,
+        }
+    }
+
+    pub fn get_instance(&self, index: usize) -> buffers::Instance {
+        let extents = self.get_extents();
+
+        let x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
+            + self.translate[0];
+        let y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
+            + self.translate[1];
 
         let width = self.width
             + self.padding[3]
@@ -266,7 +347,7 @@ impl Rectangle {
         let bc = self.border.color;
 
         buffers::Instance {
-            dimensions: [x + self.translate[0], y + self.translate[1], width, height],
+            dimensions: [x, y, width, height],
             color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
             border_radius: self.border.radius,
             border_size: self.border.size,
@@ -280,6 +361,7 @@ impl Rectangle {
             skew: self.skew,
             sepia: self.sepia,
             hue_rotate: self.hue_rotate,
+            index: index as u32,
         }
     }
 }

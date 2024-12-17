@@ -1,6 +1,35 @@
+struct InstanceData {
+    pos: vec2<f32>,
+    rect_size: vec2<f32>,
+    rect_color: vec4<f32>,
+    border_radius: vec4<f32>,
+    border_size: vec4<f32>,
+    border_top_color: vec4<f32>,
+    border_right_color: vec4<f32>,
+    border_bottom_color: vec4<f32>,
+    border_left_color: vec4<f32>,
+    outline_width: f32,
+    outline_offset: f32,
+    outline_color: vec4<f32>,
+    scale: vec2<f32>,
+    skew: vec2<f32>,
+    invert: f32,
+    rotation: f32,
+    brightness: f32,
+    saturate: f32,
+    contrast: f32,
+    grayscale: f32,
+    sepia: f32,
+    hue_rotate: f32,
+};
+
+@group(1) @binding(1)
+var<storage, read> instance_data: array<InstanceData>;
+
 struct ProjectionUniform {
     projection: mat4x4<f32>,
 };
+
 @group(0) @binding(0)
 var<uniform> projection: ProjectionUniform;
 
@@ -18,18 +47,13 @@ struct VertexOutput {
     @location(3) border_radius: vec4<f32>,
     @location(4) border_size: vec4<f32>,
     @location(5) border_color: vec4<f32>,
-    @location(6) outline: vec4<f32>,
-    // outline_width: vec2<f32>
-    // outline_offset: vec2<f32>
+    @location(6) outline: vec4<f32>, // outline width, outline offset
     @location(7) outline_color: vec4<f32>,
-    @location(8) filters: vec4<f32>,
-    // brightness: f32,
-    // saturate: f32,
-    // contrast: f32,
-    // invert: f32,
+    @location(8) filters: vec4<f32>, // brightness, saturate, contrast, invert
     @location(9) grayscale: f32,
     @location(10) sepia: f32,
     @location(11) hue_rotate: f32,
+    @location(12) index: u32,
 };
 
 struct InstanceInput {
@@ -38,21 +62,16 @@ struct InstanceInput {
     @location(3) border_radius: vec4<f32>,
     @location(4) border_size: vec4<f32>,
     @location(5) border_color: vec4<f32>,
-    @location(6) outline: vec2<f32>,
-    // outline_width: f32
-    // outline_offset: f32
+    @location(6) outline: vec2<f32>, // outline width, outline offset
     @location(7) outline_color: vec4<f32>,
-    @location(8) filters: vec4<f32>,
-    // brightness: f32,
-    // saturate: f32,
-    // contrast: f32,
-    // invert: f32,
+    @location(8) filters: vec4<f32>, // brightness, saturate, contrast, invert
     @location(9) grayscale: f32,
     @location(10) scale: vec2<f32>,
     @location(11) rotation: f32,
     @location(12) skew: vec2<f32>,
     @location(13) sepia: f32,
     @location(14) hue_rotate: f32,
+    @location(15) index: u32,
 }
 
 fn rotation_matrix(angle: f32) -> mat2x2<f32> {
@@ -112,6 +131,7 @@ fn vs_main(
     out.grayscale = instance.grayscale;
     out.sepia = instance.sepia;
     out.hue_rotate = instance.hue_rotate;
+    out.index = instance.index;
 
     return out;
 }
@@ -186,6 +206,8 @@ fn hue_rotate(color: vec3<f32>, angle: f32) -> vec3<f32> {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let instance = instance_data[in.index];
+
     let outline_width = in.outline.xy;
     let outline_offset = in.outline.zw;
 
@@ -247,7 +269,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     color = brightness_matrix(brightness) * contrast_matrix(contrast) * saturation_matrix(saturate) * color;
 
-    let hue_rotate = hue_rotate(color.rgb, in.hue_rotate);
+    let hue_rotate = hue_rotate(color.rgb, instance.hue_rotate);
     let sepia = sepia(hue_rotate, in.sepia);
     return vec4<f32>(mix(sepia, vec3<f32>(1.0) - sepia, invert), color.a);
 }

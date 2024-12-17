@@ -2,7 +2,7 @@ mod node;
 
 use crate::{
     buffers,
-    rectangle::{self, State},
+    rectangle::{self, InstanceData, State},
 };
 use calc_units::Context;
 use std::{
@@ -42,10 +42,28 @@ impl Tree {
             config.height as f32,
         );
 
+        let storage_buffer_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Bind Group Layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&projection_uniform.bind_group_layout],
+                bind_group_layouts: &[
+                    &projection_uniform.bind_group_layout,
+                    &storage_buffer_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -148,19 +166,19 @@ impl Tree {
     }
 
     pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
+        let mut instance_data = Vec::new();
         let mut instances = Vec::new();
-        self.collect_instances(&mut instances);
+        self.collect_instances(&mut instances, &mut instance_data);
+        let storage_buffer = buffers::StorageBuffer::new(device, &instance_data);
         let instance_buffer = buffers::InstanceBuffer::new(device, &instances);
 
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_bind_group(0, &self.projection_uniform.bind_group, &[]);
+        render_pass.set_bind_group(1, &storage_buffer.bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.generic_rect.slice(..));
-
         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-
         render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..instance_buffer.size());
     }
 
@@ -363,17 +381,22 @@ impl Node {
         self
     }
 
-    fn collect_instances(&self, instances: &mut Vec<buffers::Instance>) {
+    fn collect_instances(
+        &self,
+        instances: &mut Vec<buffers::Instance>,
+        new_instances: &mut Vec<InstanceData>,
+    ) {
         if self.style.display == rectangle::Display::None {
             return;
         }
 
         if self.style.display != rectangle::Display::Contents {
-            instances.push(self.data.get_instance());
+            new_instances.push(self.data.get_instance_data());
+            instances.push(self.data.get_instance(new_instances.len() - 1));
         }
 
         self.children
             .iter()
-            .for_each(|child| child.collect_instances(instances));
+            .for_each(|child| child.collect_instances(instances, new_instances));
     }
 }
