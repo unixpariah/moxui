@@ -64,8 +64,23 @@ impl Node {
         self
     }
 
-    pub fn set_border_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
-        self.border.color = [r, g, b, a];
+    pub fn set_border_top_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
+        self.border.top_color = [r, g, b, a];
+        self
+    }
+
+    pub fn set_border_bottom_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
+        self.border.bottom_color = [r, g, b, a];
+        self
+    }
+
+    pub fn set_border_left_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
+        self.border.left_color = [r, g, b, a];
+        self
+    }
+
+    pub fn set_border_right_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
+        self.border.right_color = [r, g, b, a];
         self
     }
 

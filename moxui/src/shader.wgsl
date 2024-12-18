@@ -17,10 +17,10 @@ struct InstanceData {
     outline_color: vec4<f32>,
     border_radius: vec4<f32>,
     border_size: vec4<f32>,
-    border_color_top: vec4<f32>,
-    border_color_right: vec4<f32>,
-    border_color_bottom: vec4<f32>,
-    border_color_left: vec4<f32>,
+    border_top_color: vec4<f32>,
+    border_right_color: vec4<f32>,
+    border_bottom_color: vec4<f32>,
+    border_left_color: vec4<f32>,
 };
 @group(1) @binding(1)
 var<storage, read> instance_data: array<InstanceData>;
@@ -44,7 +44,7 @@ struct VertexOutput {
     @location(4) border_size: vec4<f32>,
     @location(5) outline_width: vec2<f32>,
     @location(6) outline_offset: vec2<f32>,
-    @location(7) index: u32,
+    @location(7) instance_index: u32,
 };
 
 fn rotation_matrix(angle: f32) -> mat2x2<f32> {
@@ -90,22 +90,24 @@ fn vs_main(
     let outline_width = vec2<f32>(instance.outline_width, instance.outline_width) * scale;
     let outline_offset = vec2<f32>(instance.outline_offset, instance.outline_offset) * scale;
 
+    let border_size = instance.border_size * vec4<f32>(scale, scale);
+
     out.uv = position;
     out.rect_pos = scaled_dimensions.xy + vec2<f32>(
-        instance.border_size.x, 
-        instance.border_size.y
+        border_size.x, 
+        border_size.y
     ) * scale + vec2<f32>(
         outline_width + outline_offset
     );
     out.rect_size = scaled_dimensions.zw - vec2<f32>(
-        (instance.border_size.x + instance.border_size.z),
-        (instance.border_size.y + instance.border_size.w)
+        (border_size.x + border_size.z),
+        (border_size.y + border_size.w)
     ) * scale;
     out.border_radius = instance.border_radius * vec4<f32>(scale, scale);
-    out.border_size = instance.border_size * vec4<f32>(scale, scale);
+    out.border_size = border_size;
     out.outline_width = outline_width;
     out.outline_offset = outline_offset;
-    out.index = instanceIndex;
+    out.instance_index = instanceIndex;
 
     return out;
 }
@@ -180,8 +182,9 @@ fn hue_rotate(color: vec3<f32>, angle: f32) -> vec3<f32> {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let instance = instance_data[in.index];
+    let instance = instance_data[in.instance_index];
 
+    // Rectangle
     var pos: vec2<f32> = in.rect_pos;
     var size: vec2<f32> = in.rect_size;
     var dist: f32 = sdf_rounded_rect(
@@ -189,62 +192,51 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         size / 2.0,
         in.border_radius
     );
-    
     let rect_alpha = 1.0 - smoothstep(0.0, 2.0, dist);
     var color: vec4<f32> = vec4<f32>(instance.rect_color.rgb, instance.rect_color.a * rect_alpha);
 
-    if (in.border_size.x > 0.0 || in.border_size.y > 0.0 || in.border_size.w > 0.0 || in.border_size.z > 0.0) {
-        size += vec2<f32>((in.border_size.x + in.border_size.z), (in.border_size.y + in.border_size.w)) / 2.0;
-        pos -= vec2<f32>(in.border_size.x, in.border_size.y) / 2.0;
+    // Border
+    size += vec2<f32>((in.border_size.x + in.border_size.z), (in.border_size.y + in.border_size.w)) / 2.0;
+    pos -= vec2<f32>(in.border_size.x, in.border_size.y) / 2.0;
+    let border_dist = sdf_rounded_rect(
+        in.uv - pos - (size / 2.0),
+        size / 2.0,
+        in.border_radius
+    );
+    let border_alpha = 1.0 - smoothstep(0.0, 2.0, border_dist);
+    let border_color = vec4<f32>(instance.border_top_color.rgb, instance.border_top_color.a * border_alpha);
+    color = mix(color, border_color, smoothstep(0.0, 1.0, dist));
+    dist = border_dist;
 
-        let border_dist = sdf_rounded_rect(
-            in.uv - pos - (size / 2.0),
-            size / 2.0,
-            in.border_radius
-        );
-        
-        let border_alpha = 1.0 - smoothstep(0.0, 2.0, border_dist);
-        let border_color = vec4<f32>(instance.border_color_top.rgb, instance.border_color_top.a * border_alpha);
-
-        color = mix(color, border_color, smoothstep(0.0, 1.0, dist));
-        dist = border_dist;
-    }
-
-    if (in.outline_offset.x > 0.0 || in.outline_offset.y > 0.0) {
-        size += in.outline_offset * 2.0;
-        pos -= in.outline_offset;
-        color = mix(color, vec4<f32>(0.0), smoothstep(0.0, 1.0, dist));
-        dist = sdf_rounded_rect(
-            in.uv - pos - (size / 2.0),
-            size / 2.0,
-            in.border_radius
-        );
-    }
-
-    if (in.outline_width.x > 0.0 || in.outline_width.y > 0.0) {
-        size += in.outline_width * 2.0;
-        pos -= in.outline_width;
-        
-        let outline_dist = sdf_rounded_rect(
-            in.uv - pos - (size / 2.0),
-            size / 2.0,
-            in.border_radius
-        );
-        
-        let outline_alpha = 1.0 - smoothstep(0.0, 2.0, outline_dist);
-        let outline_color = vec4<f32>(instance.outline_color.rgb, instance.outline_color.a * outline_alpha);
-
-        color = mix(color, outline_color, smoothstep(0.0, 1.0, dist));
-        dist = outline_dist;
-    }
+    // Outline offset
+    size += in.outline_offset * 2.0;
+    pos -= in.outline_offset;
+    color = mix(color, vec4<f32>(0.0), smoothstep(0.0, 1.0, dist));
+    dist = sdf_rounded_rect(
+        in.uv - pos - (size / 2.0),
+        size / 2.0,
+        in.border_radius
+    );
+    
+    // Outline width
+    size += in.outline_width * 2.0;
+    pos -= in.outline_width;
+    let outline_dist = sdf_rounded_rect(
+        in.uv - pos - (size / 2.0),
+        size / 2.0,
+        in.border_radius
+    );
+    let outline_alpha = 1.0 - smoothstep(0.0, 2.0, outline_dist);
+    let outline_color = vec4<f32>(instance.outline_color.rgb, instance.outline_color.a * outline_alpha);
+    color = mix(color, outline_color, smoothstep(0.0, 1.0, dist));
+    dist = outline_dist;
 
     color = brightness_matrix(instance.brightness) 
           * contrast_matrix(instance.contrast) 
           * saturation_matrix(instance.saturate) 
           * color;
-
-    let hue_rotated = hue_rotate(color.rgb, instance.hue_rotate);
-    let sepia_color = sepia(hue_rotated, instance.sepia);
+    let hue_rotate = hue_rotate(color.rgb, instance.hue_rotate);
+    let sepia_color = sepia(hue_rotate, instance.sepia);
 
     return vec4<f32>(mix(sepia_color, vec3<f32>(1.0) - sepia_color, instance.invert), color.a);
 }

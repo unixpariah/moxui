@@ -1,13 +1,11 @@
 mod flexbox;
 
-use std::{rc::Rc, sync::RwLock};
-
-use crate::buffers;
 use calc_units::Units;
 use flexbox::{
     AlignContent, AlignItems, AlignSelf, FlexBasis, FlexDirection, FlexGrow, FlexShrink, FlexWrap,
     JustifyContent, Order,
 };
+use std::{rc::Rc, sync::RwLock};
 
 #[repr(C, align(16))]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -35,10 +33,10 @@ pub struct InstanceData {
     outline_color: [f32; 4],
     border_radius: [f32; 4],
     border_size: [f32; 4],
-    border_color_top: [f32; 4],
-    border_color_right: [f32; 4],
-    border_color_bottom: [f32; 4],
-    border_color_left: [f32; 4],
+    border_top_color: [f32; 4],
+    border_right_color: [f32; 4],
+    border_bottom_color: [f32; 4],
+    border_left_color: [f32; 4],
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -78,7 +76,10 @@ pub enum BorderStyle {
 pub struct Border {
     pub radius: [f32; 4],
     pub size: [f32; 4],
-    pub color: [f32; 4],
+    pub top_color: [f32; 4],
+    pub bottom_color: [f32; 4],
+    pub left_color: [f32; 4],
+    pub right_color: [f32; 4],
     pub style: BorderStyle,
 }
 
@@ -86,7 +87,10 @@ impl Default for Border {
     fn default() -> Self {
         Self {
             radius: [0.0, 0.0, 0.0, 0.0],
-            color: [0.0, 0.0, 0.0, 0.0],
+            top_color: [0.0, 0.0, 0.0, 0.0],
+            bottom_color: [0.0, 0.0, 0.0, 0.0],
+            left_color: [0.0, 0.0, 0.0, 0.0],
+            right_color: [0.0, 0.0, 0.0, 0.0],
             size: [0.0, 0.0, 0.0, 0.0],
             style: BorderStyle::Solid,
         }
@@ -295,10 +299,6 @@ impl Rectangle {
             + self.border.size[2]
             + (self.outline.width + self.outline.offset) * 2.0;
 
-        let bg = self.background_color;
-        let oc = self.outline.color;
-        let bc = self.border.color;
-
         InstanceData {
             rect_pos: [x, y],
             rect_size: [width, height],
@@ -319,19 +319,35 @@ impl Rectangle {
             hue_rotate: self.hue_rotate,
 
             _padding: [0, 0, 0, 0, 0, 0, 0, 0],
-            rect_color: bg,
-            outline_color: oc,
+            rect_color: self.background_color,
+            outline_color: self.outline.color,
             border_size: self.border.size,
             border_radius: self.border.radius,
-            border_color_top: bc,
-            border_color_right: bc,
-            border_color_bottom: bc,
-            border_color_left: bc,
+            border_top_color: [
+                self.border.top_color[0] * self.border.top_color[3],
+                self.border.top_color[1] * self.border.top_color[3],
+                self.border.top_color[2] * self.border.top_color[3],
+                self.border.top_color[3],
+            ],
+            border_right_color: [
+                self.border.right_color[0] * self.border.right_color[3],
+                self.border.right_color[1] * self.border.right_color[3],
+                self.border.right_color[2] * self.border.right_color[3],
+                self.border.right_color[3],
+            ],
+            border_bottom_color: [
+                self.border.bottom_color[0] * self.border.bottom_color[3],
+                self.border.bottom_color[1] * self.border.bottom_color[3],
+                self.border.bottom_color[2] * self.border.bottom_color[3],
+                self.border.bottom_color[3],
+            ],
+            border_left_color: [
+                self.border.left_color[0] * self.border.left_color[3],
+                self.border.left_color[1] * self.border.left_color[3],
+                self.border.left_color[2] * self.border.left_color[3],
+                self.border.left_color[3],
+            ],
         }
-    }
-
-    pub fn get_instance(&self) -> buffers::Instance {
-        buffers::Instance { color: 0.0 }
     }
 }
 
