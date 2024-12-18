@@ -392,7 +392,7 @@ impl Node {
 
         if self.style.display != rectangle::Display::Contents {
             new_instances.push(self.data.get_instance_data());
-            instances.push(self.data.get_instance(new_instances.len() - 1));
+            instances.push(self.data.get_instance());
         }
 
         self.children

@@ -12,22 +12,17 @@ use flexbox::{
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct InstanceData {
-    pos: [f32; 2],
+    rect_pos: [f32; 2],
     rect_size: [f32; 2],
-    rect_color: [f32; 4],
-    border_radius: [f32; 4],
-    border_size: [f32; 4],
-    border_top_color: [f32; 4],
-    border_right_color: [f32; 4],
-    border_bottom_color: [f32; 4],
-    border_left_color: [f32; 4],
+
     outline_width: f32,
     outline_offset: f32,
-    outline_color: [f32; 4],
+
     scale: [f32; 2],
     skew: [f32; 2],
-    invert: f32,
     rotation: f32,
+
+    invert: f32,
     brightness: f32,
     saturate: f32,
     contrast: f32,
@@ -295,32 +290,27 @@ impl Rectangle {
         let bc = self.border.color;
 
         InstanceData {
-            pos: [x, y],
+            rect_pos: [x, y],
             rect_size: [width, height],
-            rect_color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
-            border_radius: self.border.radius,
-            border_size: self.border.size,
-            border_top_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
-            border_bottom_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
-            border_left_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
-            border_right_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
+
             outline_width: self.outline.width,
             outline_offset: self.outline.offset,
-            outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
+
+            rotation: self.rotate,
+            scale: self.scale,
+            skew: self.skew,
+
+            invert: self.invert,
             brightness: self.brightness,
             saturate: self.saturate,
             contrast: self.contrast,
-            invert: self.invert,
             grayscale: self.grayscale,
-            scale: self.scale,
-            rotation: self.rotate,
-            skew: self.skew,
             sepia: self.sepia,
             hue_rotate: self.hue_rotate,
         }
     }
 
-    pub fn get_instance(&self, index: usize) -> buffers::Instance {
+    pub fn get_instance(&self) -> buffers::Instance {
         let extents = self.get_extents();
 
         let x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
@@ -347,21 +337,11 @@ impl Rectangle {
         let bc = self.border.color;
 
         buffers::Instance {
-            dimensions: [x, y, width, height],
             color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
             border_radius: self.border.radius,
             border_size: self.border.size,
             border_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
-            outline: [self.outline.width, self.outline.offset],
             outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
-            filter: [self.brightness, self.saturate, self.contrast, self.invert],
-            grayscale: self.grayscale,
-            scale: self.scale,
-            rotation: self.rotate,
-            skew: self.skew,
-            sepia: self.sepia,
-            hue_rotate: self.hue_rotate,
-            index: index as u32,
         }
     }
 }

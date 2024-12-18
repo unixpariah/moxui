@@ -102,40 +102,20 @@ impl Deref for IndexBuffer {
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug)]
 pub struct Instance {
-    pub dimensions: [f32; 4],
     pub color: [f32; 4],
     pub border_radius: [f32; 4],
     pub border_size: [f32; 4],
     pub border_color: [f32; 4],
-    pub outline: [f32; 2],
     pub outline_color: [f32; 4],
-    pub filter: [f32; 4],
-    pub grayscale: f32,
-    pub scale: [f32; 2],
-    pub rotation: f32,
-    pub skew: [f32; 2],
-    pub sepia: f32,
-    pub hue_rotate: f32,
-    pub index: u32,
 }
 
 impl Instance {
-    const ATTRIBS: [wgpu::VertexAttribute; 15] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
         1 => Float32x4,
         2 => Float32x4,
         3 => Float32x4,
         4 => Float32x4,
         5 => Float32x4,
-        6 => Float32x2,
-        7 => Float32x4,
-        8 => Float32x4,
-        9 => Float32,
-        10 => Float32x2,
-        11 => Float32,
-        12 => Float32x2,
-        13 => Float32,
-        14 => Float32,
-        15 => Uint32,
     ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -221,7 +201,7 @@ impl StorageBuffer {
         let storage_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Storage buffer"),
             contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
