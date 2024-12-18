@@ -1,4 +1,4 @@
-# CSS Level 3 and Earlier Features TODO List
+# CSS Level 3 TODO List
 
 ## Selectors
 - [ ] Universal Selector (`*`)
@@ -98,7 +98,8 @@
   - [x] `block`
   - [x] `inline`
   - [x] `inline-block`
-  - [ ] `none`
+  - [x] `none`
+  - [x] `content`
   - [ ] `flex`
   - [ ] `grid`
 - [ ] Position

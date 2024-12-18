@@ -204,8 +204,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         in.border_radius
     );
     let border_alpha = 1.0 - smoothstep(0.0, 2.0, border_dist);
-    let border_color = vec4<f32>(instance.border_top_color.rgb, instance.border_top_color.a * border_alpha);
-    color = mix(color, border_color, smoothstep(0.0, 1.0, dist));
+    let is_top = (in.uv.y > pos.y + size.y - in.border_size.y);
+    let is_bottom = (in.uv.y < pos.y + in.border_size.w);
+    let is_left = (in.uv.x < pos.x + in.border_size.x);
+    let is_right = (in.uv.x > pos.x + size.x - in.border_size.z);
+    let border_color = select(
+        select(
+            instance.border_top_color,
+            instance.border_bottom_color,
+            is_bottom
+        ),
+        select(
+            instance.border_left_color,
+            instance.border_right_color,
+            is_right
+        ),
+        is_left || is_right
+    );
+
+    color = mix(color, vec4<f32>(border_color.rgb, border_color.a * border_alpha), smoothstep(0.0, 1.0, dist));
     dist = border_dist;
 
     // Outline offset

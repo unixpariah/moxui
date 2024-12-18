@@ -16,10 +16,10 @@ pub fn scroll(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                         Units::Px(5.0),
                         Units::Px(5.0),
                     )
-                    .set_border_top_color(1.0, 1.0, 0.0, 1.0)
+                    .set_border_top_color(1.0, 0.0, 0.0, 1.0)
                     .set_border_bottom_color(1.0, 1.0, 0.0, 1.0)
-                    .set_border_left_color(1.0, 1.0, 0.0, 1.0)
-                    .set_border_right_color(1.0, 1.0, 0.0, 1.0)
+                    .set_border_left_color(0.0, 1.0, 0.0, 1.0)
+                    .set_border_right_color(1.0, 0.0, 1.0, 1.0)
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
