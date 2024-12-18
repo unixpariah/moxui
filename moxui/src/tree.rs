@@ -67,7 +67,7 @@ impl Tree {
                 push_constant_ranges: &[],
             });
 
-        let vertex_buffers = [buffers::Vertex::desc(), buffers::Instance::desc()];
+        let vertex_buffers = [buffers::Vertex::desc()];
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -167,19 +167,16 @@ impl Tree {
 
     pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
         let mut instance_data = Vec::new();
-        let mut instances = Vec::new();
-        self.collect_instances(&mut instances, &mut instance_data);
-        let storage_buffer = buffers::StorageBuffer::new(device, &instance_data);
-        let instance_buffer = buffers::InstanceBuffer::new(device, &instances);
+        self.collect_instances(&mut instance_data);
+        let storage_buffer = buffers::StorageBuffer::new(device, instance_data.into());
 
         render_pass.set_pipeline(&self.render_pipeline);
 
         render_pass.set_bind_group(0, &self.projection_uniform.bind_group, &[]);
         render_pass.set_bind_group(1, &storage_buffer.bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.generic_rect.slice(..));
-        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..instance_buffer.size());
+        render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..storage_buffer.len());
     }
 
     pub fn finish(mut self) -> Self {
@@ -381,22 +378,17 @@ impl Node {
         self
     }
 
-    fn collect_instances(
-        &self,
-        instances: &mut Vec<buffers::Instance>,
-        new_instances: &mut Vec<InstanceData>,
-    ) {
+    fn collect_instances(&self, instance_data: &mut Vec<InstanceData>) {
         if self.style.display == rectangle::Display::None {
             return;
         }
 
         if self.style.display != rectangle::Display::Contents {
-            new_instances.push(self.data.get_instance_data());
-            instances.push(self.data.get_instance());
+            instance_data.push(self.data.get_instance_data());
         }
 
         self.children
             .iter()
-            .for_each(|child| child.collect_instances(instances, new_instances));
+            .for_each(|child| child.collect_instances(instance_data));
     }
 }

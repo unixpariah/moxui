@@ -9,7 +9,7 @@ use flexbox::{
     JustifyContent, Order,
 };
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct InstanceData {
     rect_pos: [f32; 2],
@@ -29,6 +29,16 @@ pub struct InstanceData {
     grayscale: f32,
     sepia: f32,
     hue_rotate: f32,
+
+    _padding: [u8; 8],
+    rect_color: [f32; 4],
+    outline_color: [f32; 4],
+    border_radius: [f32; 4],
+    border_size: [f32; 4],
+    border_color_top: [f32; 4],
+    border_color_right: [f32; 4],
+    border_color_bottom: [f32; 4],
+    border_color_left: [f32; 4],
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -307,42 +317,21 @@ impl Rectangle {
             grayscale: self.grayscale,
             sepia: self.sepia,
             hue_rotate: self.hue_rotate,
+
+            _padding: [0, 0, 0, 0, 0, 0, 0, 0],
+            rect_color: bg,
+            outline_color: oc,
+            border_size: self.border.size,
+            border_radius: self.border.radius,
+            border_color_top: bc,
+            border_color_right: bc,
+            border_color_bottom: bc,
+            border_color_left: bc,
         }
     }
 
     pub fn get_instance(&self) -> buffers::Instance {
-        let extents = self.get_extents();
-
-        let x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
-            + self.translate[0];
-        let y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
-            + self.translate[1];
-
-        let width = self.width
-            + self.padding[3]
-            + self.padding[1]
-            + self.border.size[3]
-            + self.border.size[1]
-            + (self.outline.width + self.outline.offset) * 2.0;
-
-        let height = self.height
-            + self.padding[0]
-            + self.padding[2]
-            + self.border.size[0]
-            + self.border.size[2]
-            + (self.outline.width + self.outline.offset) * 2.0;
-
-        let bg = self.background_color;
-        let oc = self.outline.color;
-        let bc = self.border.color;
-
-        buffers::Instance {
-            color: [bg[0] * bg[3], bg[1] * bg[3], bg[2] * bg[3], bg[3]],
-            border_radius: self.border.radius,
-            border_size: self.border.size,
-            border_color: [bc[0] * bc[3], bc[1] * bc[3], bc[2] * bc[3], bc[3]],
-            outline_color: [oc[0] * oc[3], oc[1] * oc[3], oc[2] * oc[3], oc[3]],
-        }
+        buffers::Instance { color: 0.0 }
     }
 }
 

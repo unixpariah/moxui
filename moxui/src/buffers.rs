@@ -1,7 +1,4 @@
-use crate::{
-    math::{self, Matrix},
-    rectangle::InstanceData,
-};
+use crate::math::{self, Matrix};
 use std::{
     ops::{Deref, RangeBounds},
     rc::Rc,
@@ -102,20 +99,12 @@ impl Deref for IndexBuffer {
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Debug)]
 pub struct Instance {
-    pub color: [f32; 4],
-    pub border_radius: [f32; 4],
-    pub border_size: [f32; 4],
-    pub border_color: [f32; 4],
-    pub outline_color: [f32; 4],
+    pub color: f32,
 }
 
 impl Instance {
-    const ATTRIBS: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
-        1 => Float32x4,
-        2 => Float32x4,
-        3 => Float32x4,
-        4 => Float32x4,
-        5 => Float32x4,
+    const ATTRIBS: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![
+        1 => Float32,
     ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -124,21 +113,6 @@ impl Instance {
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }
-    }
-}
-
-pub struct InstanceBuffer(Buffer<Instance>);
-
-impl InstanceBuffer {
-    pub fn new(device: &wgpu::Device, instances: &[Instance]) -> InstanceBuffer {
-        Self(Buffer::new(device, wgpu::BufferUsages::VERTEX, instances))
-    }
-}
-
-impl Deref for InstanceBuffer {
-    type Target = Buffer<Instance>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
@@ -190,14 +164,18 @@ impl ProjectionUniform {
     }
 }
 
-pub struct StorageBuffer {
+pub struct StorageBuffer<T> {
+    pub storage: Rc<[T]>,
     pub buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
 
-impl StorageBuffer {
-    pub fn new(device: &wgpu::Device, instance_data: &[InstanceData]) -> Self {
+impl<T> StorageBuffer<T> {
+    pub fn new(device: &wgpu::Device, instance_data: Rc<[T]>) -> Self
+    where
+        T: bytemuck::Pod,
+    {
         let storage_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Storage buffer"),
             contents: bytemuck::cast_slice(&instance_data),
@@ -228,9 +206,14 @@ impl StorageBuffer {
         });
 
         Self {
+            storage: instance_data,
             buffer: storage_buffer,
             bind_group_layout,
             bind_group,
         }
+    }
+
+    pub fn len(&self) -> u32 {
+        self.storage.len() as u32
     }
 }

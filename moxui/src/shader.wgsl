@@ -13,15 +13,21 @@ struct InstanceData {
     grayscale: f32,
     sepia: f32,
     hue_rotate: f32,
+    rect_color: vec4<f32>,
+    outline_color: vec4<f32>,
+    border_radius: vec4<f32>,
+    border_size: vec4<f32>,
+    border_color_top: vec4<f32>,
+    border_color_right: vec4<f32>,
+    border_color_bottom: vec4<f32>,
+    border_color_left: vec4<f32>,
 };
-
 @group(1) @binding(1)
 var<storage, read> instance_data: array<InstanceData>;
 
 struct ProjectionUniform {
     projection: mat4x4<f32>,
 };
-
 @group(0) @binding(0)
 var<uniform> projection: ProjectionUniform;
 
@@ -34,22 +40,11 @@ struct VertexOutput {
     @location(0) uv: vec2<f32>,
     @location(1) rect_pos: vec2<f32>,
     @location(2) rect_size: vec2<f32>,
-    @location(3) rect_color: vec4<f32>,
-    @location(4) border_radius: vec4<f32>,
-    @location(5) border_size: vec4<f32>,
-    @location(6) border_color: vec4<f32>,
-    @location(7) outline_width: vec2<f32>,
-    @location(8) outline_offset: vec2<f32>,
-    @location(9) outline_color: vec4<f32>,
-    @location(10) index: u32,
-};
-
-struct InstanceInput {
-    @location(1) rect_color: vec4<f32>,
-    @location(2) border_radius: vec4<f32>,
-    @location(3) border_size: vec4<f32>,
-    @location(4) border_color: vec4<f32>,
-    @location(5) outline_color: vec4<f32>,
+    @location(3) border_radius: vec4<f32>,
+    @location(4) border_size: vec4<f32>,
+    @location(5) outline_width: vec2<f32>,
+    @location(6) outline_offset: vec2<f32>,
+    @location(7) index: u32,
 };
 
 fn rotation_matrix(angle: f32) -> mat2x2<f32> {
@@ -72,32 +67,30 @@ fn skew_matrix(skewX: f32, skewY: f32) -> mat2x2<f32> {
 @vertex
 fn vs_main(
     model: VertexInput,
-    instance: InstanceInput,
     @builtin(instance_index) instanceIndex: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let current_instance = instance_data[instanceIndex];
+    let instance = instance_data[instanceIndex];
 
-    let scale = current_instance.scale;
-
-    let outline_width = vec2<f32>(current_instance.outline_width, current_instance.outline_width) * scale;
-    let outline_offset = vec2<f32>(current_instance.outline_offset, current_instance.outline_offset) * scale;
+    let scale = instance.scale;
 
     let scaled_dimensions = vec4<f32>(
-        current_instance.rect_pos * scale,
-        current_instance.rect_size * scale
+        instance.rect_pos * scale,
+        instance.rect_size * scale
     );
 
     let position = model.position * scaled_dimensions.zw + scaled_dimensions.xy;
 
     out.clip_position = projection.projection * vec4<f32>(
-        position * rotation_matrix(current_instance.rotation) * skew_matrix(current_instance.skew.x, current_instance.skew.y), 
+        position * rotation_matrix(instance.rotation) * skew_matrix(instance.skew.x, instance.skew.y), 
         0.0, 
         1.0
     );
 
+    let outline_width = vec2<f32>(instance.outline_width, instance.outline_width) * scale;
+    let outline_offset = vec2<f32>(instance.outline_offset, instance.outline_offset) * scale;
+
     out.uv = position;
-    out.rect_color = instance.rect_color;
     out.rect_pos = scaled_dimensions.xy + vec2<f32>(
         instance.border_size.x, 
         instance.border_size.y
@@ -105,15 +98,13 @@ fn vs_main(
         outline_width + outline_offset
     );
     out.rect_size = scaled_dimensions.zw - vec2<f32>(
-        (instance.border_size.x + instance.border_size.z) * scale.x, 
-        (instance.border_size.y + instance.border_size.w) * scale.y
-    );
+        (instance.border_size.x + instance.border_size.z),
+        (instance.border_size.y + instance.border_size.w)
+    ) * scale;
     out.border_radius = instance.border_radius * vec4<f32>(scale, scale);
-    out.border_size = vec4<f32>(instance.border_size.xy, instance.border_size.zw) * vec4<f32>(scale, scale);
-    out.border_color = instance.border_color;
+    out.border_size = instance.border_size * vec4<f32>(scale, scale);
     out.outline_width = outline_width;
     out.outline_offset = outline_offset;
-    out.outline_color = instance.outline_color;
     out.index = instanceIndex;
 
     return out;
@@ -200,7 +191,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     );
     
     let rect_alpha = 1.0 - smoothstep(0.0, 2.0, dist);
-    var color: vec4<f32> = vec4<f32>(in.rect_color.rgb, in.rect_color.a * rect_alpha);
+    var color: vec4<f32> = vec4<f32>(instance.rect_color.rgb, instance.rect_color.a * rect_alpha);
 
     if (in.border_size.x > 0.0 || in.border_size.y > 0.0 || in.border_size.w > 0.0 || in.border_size.z > 0.0) {
         size += vec2<f32>((in.border_size.x + in.border_size.z), (in.border_size.y + in.border_size.w)) / 2.0;
@@ -213,7 +204,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         );
         
         let border_alpha = 1.0 - smoothstep(0.0, 2.0, border_dist);
-        let border_color = vec4<f32>(in.border_color.rgb, in.border_color.a * border_alpha);
+        let border_color = vec4<f32>(instance.border_color_top.rgb, instance.border_color_top.a * border_alpha);
 
         color = mix(color, border_color, smoothstep(0.0, 1.0, dist));
         dist = border_dist;
@@ -241,7 +232,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         );
         
         let outline_alpha = 1.0 - smoothstep(0.0, 2.0, outline_dist);
-        let outline_color = vec4<f32>(in.outline_color.rgb, in.outline_color.a * outline_alpha);
+        let outline_color = vec4<f32>(instance.outline_color.rgb, instance.outline_color.a * outline_alpha);
 
         color = mix(color, outline_color, smoothstep(0.0, 1.0, dist));
         dist = outline_dist;
