@@ -9,22 +9,22 @@ pub fn display_inline_block(wgpu_ctx: &WgpuCtx) -> tree::Tree {
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(0.0, 0.0, 1.0, 1.0)
-                    .set_size(Some(Units::Perc(90.0)), Some(Units::Px(50.0)))
+                    .set_size(Units::Perc(90.0), Units::Px(50.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(1.0, 0.0, 0.0, 1.0)
-                    .set_size(Some(Units::Px(150.0)), Some(Units::Px(50.0)))
+                    .set_size(Units::Px(150.0), Units::Px(50.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(0.0, 1.0, 1.0, 1.0)
-                    .set_size(Some(Units::Px(150.0)), Some(Units::Px(50.0)))
+                    .set_size(Units::Px(150.0), Units::Px(50.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(1.0, 0.0, 0.0, 1.0)
-                    .set_size(Some(Units::Px(150.0)), Some(Units::Px(50.0)))
+                    .set_size(Units::Px(150.0), Units::Px(50.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::Inline)
@@ -38,17 +38,17 @@ pub fn display_inline_block(wgpu_ctx: &WgpuCtx) -> tree::Tree {
             })
             .add_child(|item| {
                 item.set_background_color(1.0, 0.0, 1.0, 1.0)
-                    .set_size(None, Some(Units::Px(50.0)))
+                    .set_size(Units::Auto, Units::Px(50.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(0.0, 1.0, 1.0, 1.0)
-                    .set_size(Some(Units::Px(150.0)), Some(Units::Px(50.0)))
+                    .set_size(Units::Px(150.0), Units::Px(50.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(1.0, 0.0, 0.0, 1.0)
-                    .set_size(Some(Units::Px(150.0)), Some(Units::Px(50.0)))
+                    .set_size(Units::Px(150.0), Units::Px(50.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::Inline)

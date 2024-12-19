@@ -115,13 +115,15 @@ pub enum Display {
 }
 
 pub struct Style {
+    pub top: Units,
+    pub right: Units,
+    pub bottom: Units,
+    pub left: Units,
     pub position: Position,
     pub float: Float,
     pub display: Display,
-    pub x: Units,
-    pub y: Units,
-    pub width: Option<Units>,
-    pub height: Option<Units>,
+    pub width: Units,
+    pub height: Units,
     pub margin: [Units; 4],
     pub padding: [Units; 4],
     pub border: [Units; 4],
@@ -141,13 +143,15 @@ pub struct Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
+            top: Units::Px(0.0),
+            right: Units::Px(0.0),
+            bottom: Units::Px(0.0),
+            left: Units::Px(0.0),
             position: Position::Static,
             float: Float::None,
             display: Display::Block,
-            x: Units::Px(0.0),
-            y: Units::Px(0.0),
-            width: None,
-            height: None,
+            width: Units::Auto,
+            height: Units::Auto,
             margin: [const { Units::Px(0.0) }; 4],
             padding: [const { Units::Px(0.0) }; 4],
             border: [const { Units::Px(0.0) }; 4],
@@ -280,10 +284,17 @@ impl Rectangle {
     pub fn get_instance_data(&self) -> InstanceData {
         let extents = self.get_extents();
 
-        let x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
+        let mut x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
             + self.translate[0];
-        let y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
+        let mut y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
             + self.translate[1];
+
+        if self.style.position == Position::Sticky {
+            let state = self.state.read().unwrap();
+
+            x = x.max(state.scroll.0);
+            y = y.max(state.scroll.1);
+        }
 
         let width = self.width
             + self.padding[3]
@@ -318,7 +329,7 @@ impl Rectangle {
             sepia: self.sepia,
             hue_rotate: self.hue_rotate,
 
-            _padding: [0, 0, 0, 0, 0, 0, 0, 0],
+            _padding: [const { 0 }; 8],
             rect_color: self.background_color,
             outline_color: self.outline.color,
             border_size: self.border.size,

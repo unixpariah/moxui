@@ -6,6 +6,7 @@ pub enum Units {
     Vmin(f32),
     Vmax(f32),
     Calc(Box<CalcExpr>),
+    Auto,
 }
 
 pub enum CalcExpr {
@@ -40,6 +41,7 @@ impl Units {
             Self::Vmin(num) => *num * context.viewport.0.min(context.viewport.1) as f32 / 100.0,
             Self::Vmax(num) => *num * context.viewport.0.max(context.viewport.1) / 100.0,
             Self::Calc(expr) => expr.evaluate(context),
+            Self::Auto => context.auto,
         }
     }
 }
@@ -47,4 +49,5 @@ impl Units {
 pub struct Context {
     pub parent_size: f32,
     pub viewport: (f32, f32),
+    pub auto: f32,
 }

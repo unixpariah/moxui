@@ -1,4 +1,5 @@
 use crate::WgpuCtx;
+use calc_macro::calc;
 use calc_units::Units;
 use moxui::tree;
 
@@ -9,7 +10,7 @@ pub fn scroll(wgpu_ctx: &WgpuCtx) -> tree::Tree {
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(0.0, 0.0, 1.0, 1.0)
-                    .set_size(Some(Units::Perc(150.0)), Some(Units::Px(50.0)))
+                    .set_size(Units::Perc(150.0), Units::Px(50.0))
                     .set_border_size(
                         Units::Px(5.0),
                         Units::Px(5.0),
@@ -24,22 +25,34 @@ pub fn scroll(wgpu_ctx: &WgpuCtx) -> tree::Tree {
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(1.0, 0.0, 0.0, 1.0)
-                    .set_size(Some(Units::Px(50.0)), Some(Units::Perc(150.0)))
+                    .set_size(Units::Px(50.0), Units::Perc(150.0))
             })
             .add_child(|item| {
                 item.set_display(moxui::rectangle::Display::InlineBlock)
                     .set_background_color(0.0, 1.0, 0.0, 1.0)
-                    .set_size(Some(Units::Px(150.0)), Some(Units::Px(150.0)))
+                    .set_size(Units::Px(150.0), Units::Px(150.0))
+            })
+            .add_child(|item| {
+                item.set_position(moxui::rectangle::Position::Sticky)
+                    .set_display(moxui::rectangle::Display::InlineBlock)
+                    .set_background_color(1.0, 1.0, 0.0, 1.0)
+                    .set_size(Units::Px(150.0), Units::Px(150.0))
+                    .set_margin(
+                        Units::Px(0.0),
+                        Units::Px(0.0),
+                        Units::Px(0.0),
+                        Units::Px(50.0),
+                    )
             })
             .add_child(|item| {
                 item.set_position(moxui::rectangle::Position::Fixed)
                     .set_background_color(1.0, 1.0, 0.0, 1.0)
-                    .set_size(Some(Units::Px(150.0)), Some(Units::Px(150.0)))
+                    .set_size(Units::Px(150.0), Units::Px(150.0))
                     .set_margin(
-                        Units::Px(50.0),
+                        calc!(50vh - 75px),
                         Units::Px(0.0),
                         Units::Px(0.0),
-                        Units::Px(50.0),
+                        calc!(50vw - 75px),
                     )
             })
     })

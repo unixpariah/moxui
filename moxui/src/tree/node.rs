@@ -3,22 +3,12 @@ use calc_units::Units;
 
 use super::Node;
 
-// Name              | Implemented by Struct | Implemented by Shader
-// ------------------|-----------------------|-----------------------
-// opacity           | [x]                   | [x]
-// blur              | [ ]                   | [ ]
-// brightness        | [x]                   | [x]
-// contrast          | [x]                   | [x]
-// grayscale         | [x]                   | [x]
-// invert            | [x]                   | [x]
-// sepia             | [x]                   | [x]
-// saturate          | [x]                   | [x]
-// hue-rotate        | [x]                   | [ ]
-
 impl Node {
-    pub fn set_coordinates(mut self, x: Units, y: Units) -> Self {
-        self.style.x = x;
-        self.style.y = y;
+    pub fn set_coordinates(mut self, top: Units, right: Units, bottom: Units, left: Units) -> Self {
+        self.style.top = top;
+        self.style.right = right;
+        self.style.bottom = bottom;
+        self.style.left = left;
         self
     }
 
@@ -32,7 +22,7 @@ impl Node {
         self
     }
 
-    pub fn set_size(mut self, width: Option<Units>, height: Option<Units>) -> Self {
+    pub fn set_size(mut self, width: Units, height: Units) -> Self {
         self.style.width = width;
         self.style.height = height;
         self

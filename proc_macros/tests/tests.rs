@@ -3,6 +3,7 @@ use calc_macro::calc;
 static CONTEXT: calc_units::Context = calc_units::Context {
     viewport: (1920.0, 1080.0),
     parent_size: 200.0,
+    auto: 0.0,
 };
 
 use calc_units::Units;

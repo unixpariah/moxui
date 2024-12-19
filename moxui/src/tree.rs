@@ -251,20 +251,16 @@ impl Node {
 
         let mut total_size = (0.0, 0.0);
         let width = self.width;
+        let height = self.height;
 
-        let vert_context = Context {
-            parent_size: self.height,
-            viewport: state.viewport,
-        };
-        let hor_context = Context {
-            parent_size: self.width,
-            viewport: state.viewport,
-        };
-
-        let extents = self.get_extents();
         let mut children = collect_children(&mut self.children);
         children.iter_mut().for_each(|child| {
             (0..4).for_each(|i| {
+                let hor_context = Context {
+                    parent_size: width,
+                    viewport: state.viewport,
+                    auto: 0.0,
+                };
                 child.padding[i] = child.style.padding[i].to_px(&hor_context);
                 child.margin[i] = child.style.margin[i].to_px(&hor_context);
                 child.border.size[i] = child.style.border[i].to_px(&hor_context);
@@ -274,15 +270,17 @@ impl Node {
                 rectangle::Display::Block => {
                     (child.x, child.y) = (0.0, current_pos.1.max(total_size.1));
 
-                    child.width = match &child.style.width {
-                        None => extents.width,
-                        Some(units) => units.to_px(&hor_context),
-                    };
-
-                    child.height = match &child.style.height {
-                        None => child.position_children().1,
-                        Some(units) => units.to_px(&vert_context),
-                    };
+                    child.width = child.style.width.to_px(&Context {
+                        parent_size: width,
+                        viewport: state.viewport,
+                        auto: width,
+                    });
+                    let s = child.position_children();
+                    child.height = child.style.height.to_px(&Context {
+                        parent_size: height,
+                        viewport: state.viewport,
+                        auto: s.1,
+                    });
 
                     let child_extents = child.get_extents();
                     current_pos.0 = 0.0;
@@ -310,15 +308,16 @@ impl Node {
                 }
                 rectangle::Display::InlineBlock => {
                     let s = child.position_children();
-                    child.width = match &child.style.width {
-                        None => s.0,
-                        Some(units) => units.to_px(&hor_context),
-                    };
-
-                    child.height = match &child.style.height {
-                        None => s.1,
-                        Some(units) => units.to_px(&vert_context),
-                    };
+                    child.width = child.style.width.to_px(&Context {
+                        parent_size: width,
+                        viewport: state.viewport,
+                        auto: s.0,
+                    });
+                    child.height = child.style.height.to_px(&Context {
+                        parent_size: height,
+                        viewport: state.viewport,
+                        auto: s.1,
+                    });
 
                     let child_extents = child.get_extents();
 
@@ -333,31 +332,41 @@ impl Node {
                     total_size.0 = current_pos.0.max(total_size.0);
                     total_size.1 = (current_pos.1 + child_extents.height).max(total_size.1);
                 }
-                rectangle::Display::Flex => {}
-                rectangle::Display::InlineFlex => {}
-                rectangle::Display::Grid => {}
-                rectangle::Display::InlineGrid => {}
-                rectangle::Display::Table => {}
-                rectangle::Display::InlineTable => {}
-                rectangle::Display::ListItem => {}
-                rectangle::Display::RunIn => {}
-                rectangle::Display::Contents | rectangle::Display::None => {}
+                _ => {}
             }
+
+            let hor_context = &Context {
+                parent_size: width,
+                viewport: state.viewport,
+                auto: 0.0,
+            };
+            let vert_context = &Context {
+                parent_size: height,
+                viewport: state.viewport,
+                auto: 0.0,
+            };
 
             match child.style.position {
                 rectangle::Position::Static => {}
                 rectangle::Position::Relative => {
-                    child.x += child.style.x.to_px(&hor_context);
-                    child.y += child.style.y.to_px(&vert_context);
+                    child.x += child.style.top.to_px(&hor_context)
+                        - child.style.bottom.to_px(&hor_context);
+                    child.y += child.style.left.to_px(&vert_context)
+                        - child.style.right.to_px(&vert_context);
+                }
+                rectangle::Position::Sticky => {
+                    child.x += child.style.top.to_px(&hor_context)
+                        - child.style.bottom.to_px(&hor_context);
+                    child.y += child.style.left.to_px(&vert_context)
+                        - child.style.right.to_px(&vert_context);
                 }
                 rectangle::Position::Fixed => {
-                    child.x = child.style.x.to_px(&hor_context);
-                    child.y = child.style.y.to_px(&hor_context);
+                    child.x = child.style.top.to_px(&hor_context);
+                    child.y = child.style.left.to_px(&hor_context);
                 }
-                rectangle::Position::Sticky => {}
                 rectangle::Position::Absolute => {
-                    child.x = child.style.x.to_px(&hor_context);
-                    child.y = child.style.y.to_px(&vert_context);
+                    child.y = child.style.top.to_px(&vert_context);
+                    child.x = child.style.left.to_px(&hor_context);
                 }
             }
         });
