@@ -1,6 +1,6 @@
 mod flexbox;
 
-use calc_units::Units;
+use calc_units::{Context, Units};
 use flexbox::{
     AlignContent, AlignItems, AlignSelf, FlexBasis, FlexDirection, FlexGrow, FlexShrink, FlexWrap,
     JustifyContent, Order,
@@ -143,18 +143,18 @@ pub struct Style {
 impl Default for Style {
     fn default() -> Self {
         Self {
-            top: Units::Px(0.0),
-            right: Units::Px(0.0),
-            bottom: Units::Px(0.0),
-            left: Units::Px(0.0),
+            top: Units::Auto,
+            right: Units::Auto,
+            bottom: Units::Auto,
+            left: Units::Auto,
             position: Position::Static,
             float: Float::None,
             display: Display::Block,
             width: Units::Auto,
             height: Units::Auto,
-            margin: [const { Units::Px(0.0) }; 4],
-            padding: [const { Units::Px(0.0) }; 4],
-            border: [const { Units::Px(0.0) }; 4],
+            margin: [const { Units::Auto }; 4],
+            padding: [const { Units::Auto }; 4],
+            border: [const { Units::Auto }; 4],
             box_sizing: BoxSizing::ContentBox,
             flex_direction: FlexDirection::Row,
             flex_wrap: FlexWrap::Nowrap,
@@ -173,6 +173,7 @@ impl Default for Style {
 pub struct State {
     pub viewport: (f32, f32),
     pub scroll: (f32, f32),
+    pub dpi: f32,
 }
 
 pub struct Rectangle {
@@ -292,8 +293,47 @@ impl Rectangle {
         if self.style.position == Position::Sticky {
             let state = self.state.read().unwrap();
 
-            x = x.max(state.scroll.0);
-            y = y.max(state.scroll.1);
+            match (
+                &self.style.top,
+                &self.style.right,
+                &self.style.bottom,
+                &self.style.left,
+            ) {
+                (val, Units::Auto, Units::Auto, Units::Auto) => {
+                    y = y.max(
+                        state.scroll.1
+                            + val.to_px(&Context {
+                                parent_size: 0.0,
+                                viewport: state.viewport,
+                                dpi: state.dpi,
+                                auto: 0.0,
+                            }),
+                    );
+                }
+                (Units::Auto, Units::Auto, Units::Auto, val) => {
+                    x = x.max(
+                        state.scroll.0
+                            + val.to_px(&Context {
+                                parent_size: 0.0,
+                                viewport: state.viewport,
+                                dpi: state.dpi,
+                                auto: 0.0,
+                            }),
+                    );
+                }
+                (Units::Auto, Units::Auto, val, Units::Auto) => {
+                    y = (state.viewport.1).max(
+                        state.scroll.1
+                            + val.to_px(&Context {
+                                parent_size: 0.0,
+                                viewport: state.viewport,
+                                dpi: state.dpi,
+                                auto: 0.0,
+                            }),
+                    );
+                }
+                _ => {}
+            }
         }
 
         let width = self.width

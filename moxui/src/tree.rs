@@ -19,14 +19,22 @@ pub struct Tree {
     node: Node,
 }
 
+pub struct Config {
+    pub width: f32,
+    pub height: f32,
+    pub dpi: f32,
+    pub format: wgpu::TextureFormat,
+}
+
 impl Tree {
-    pub fn new<F>(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, f: F) -> Self
+    pub fn new<F>(device: &wgpu::Device, config: &Config, f: F) -> Self
     where
         F: Fn(Node) -> Node,
     {
         let state = State {
             viewport: (config.width as f32, config.height as f32),
             scroll: (0.0, 0.0),
+            dpi: config.dpi,
         };
 
         let mut node = Node::new(Rc::new(RwLock::new(state)));
@@ -259,6 +267,7 @@ impl Node {
                 let hor_context = Context {
                     parent_size: width,
                     viewport: state.viewport,
+                    dpi: state.dpi,
                     auto: 0.0,
                 };
                 child.padding[i] = child.style.padding[i].to_px(&hor_context);
@@ -273,12 +282,14 @@ impl Node {
                     child.width = child.style.width.to_px(&Context {
                         parent_size: width,
                         viewport: state.viewport,
+                        dpi: state.dpi,
                         auto: width,
                     });
                     let s = child.position_children();
                     child.height = child.style.height.to_px(&Context {
                         parent_size: height,
                         viewport: state.viewport,
+                        dpi: state.dpi,
                         auto: s.1,
                     });
 
@@ -311,11 +322,13 @@ impl Node {
                     child.width = child.style.width.to_px(&Context {
                         parent_size: width,
                         viewport: state.viewport,
+                        dpi: state.dpi,
                         auto: s.0,
                     });
                     child.height = child.style.height.to_px(&Context {
                         parent_size: height,
                         viewport: state.viewport,
+                        dpi: state.dpi,
                         auto: s.1,
                     });
 
@@ -338,23 +351,19 @@ impl Node {
             let hor_context = &Context {
                 parent_size: width,
                 viewport: state.viewport,
+                dpi: state.dpi,
                 auto: 0.0,
             };
             let vert_context = &Context {
                 parent_size: height,
                 viewport: state.viewport,
+                dpi: state.dpi,
                 auto: 0.0,
             };
 
             match child.style.position {
-                rectangle::Position::Static => {}
+                rectangle::Position::Static | rectangle::Position::Sticky => {}
                 rectangle::Position::Relative => {
-                    child.x += child.style.top.to_px(&hor_context)
-                        - child.style.bottom.to_px(&hor_context);
-                    child.y += child.style.left.to_px(&vert_context)
-                        - child.style.right.to_px(&vert_context);
-                }
-                rectangle::Position::Sticky => {
                     child.x += child.style.top.to_px(&hor_context)
                         - child.style.bottom.to_px(&hor_context);
                     child.y += child.style.left.to_px(&vert_context)
