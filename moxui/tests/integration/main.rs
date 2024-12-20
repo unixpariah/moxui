@@ -46,15 +46,6 @@ impl<'window> ApplicationHandler for App<'window> {
                     .expect("create window err."),
             );
             self.window = Some(window.clone());
-            for monitor in window.available_monitors() {
-                let size = monitor.size();
-                println!(
-                    "Monitor: {:?}, Size: {}x{}",
-                    monitor.name().unwrap_or("Unknown".to_string()),
-                    size.width,
-                    size.height
-                );
-            }
             let mut wgpu_ctx = WgpuCtx::new(window.clone());
             wgpu_ctx.trees.push(display_block(&wgpu_ctx));
             wgpu_ctx.trees.push(display_inline(&wgpu_ctx));

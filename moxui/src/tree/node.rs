@@ -74,11 +74,6 @@ impl Node {
         self
     }
 
-    pub fn set_border_style(mut self, style: rectangle::BorderStyle) -> Self {
-        self.border.style = style;
-        self
-    }
-
     pub fn set_border_radius(
         mut self,
         top_left: f32,
@@ -90,23 +85,18 @@ impl Node {
         self
     }
 
-    pub fn set_outline_width(mut self, width: f32) -> Self {
-        self.outline.width = width;
+    pub fn set_outline_width(mut self, width: Units) -> Self {
+        self.style.outline_width = width;
         self
     }
 
-    pub fn set_outline_offset(mut self, offset: f32) -> Self {
-        self.outline.offset = offset;
+    pub fn set_outline_offset(mut self, offset: Units) -> Self {
+        self.style.outline_offset = offset;
         self
     }
 
     pub fn set_outline_color(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         self.outline.color = [r, g, b, a];
-        self
-    }
-
-    pub fn set_outline_style(mut self, style: rectangle::OutlineStyle) -> Self {
-        self.outline.style = style;
         self
     }
 

@@ -263,13 +263,17 @@ impl Node {
 
         let mut children = collect_children(&mut self.children);
         children.iter_mut().for_each(|child| {
+            let hor_context = Context {
+                parent_size: width,
+                viewport: state.viewport,
+                dpi: state.dpi,
+                auto: 0.0,
+            };
+
+            child.outline.width = child.style.outline_width.to_px(&hor_context);
+            child.outline.offset = child.style.outline_offset.to_px(&hor_context);
+
             (0..4).for_each(|i| {
-                let hor_context = Context {
-                    parent_size: width,
-                    viewport: state.viewport,
-                    dpi: state.dpi,
-                    auto: 0.0,
-                };
                 child.padding[i] = child.style.padding[i].to_px(&hor_context);
                 child.margin[i] = child.style.margin[i].to_px(&hor_context);
                 child.border.size[i] = child.style.border[i].to_px(&hor_context);

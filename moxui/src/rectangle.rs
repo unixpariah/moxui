@@ -60,19 +60,6 @@ pub enum BoxSizing {
     BorderBox,
 }
 
-pub enum BorderStyle {
-    None,
-    Solid,
-    Dotted,
-    Dashed,
-    Double,
-    Groove,
-    Ridge,
-    Inset,
-    Outset,
-    Hidden,
-}
-
 pub struct Border {
     pub radius: [f32; 4],
     pub size: [f32; 4],
@@ -80,7 +67,6 @@ pub struct Border {
     pub bottom_color: [f32; 4],
     pub left_color: [f32; 4],
     pub right_color: [f32; 4],
-    pub style: BorderStyle,
 }
 
 impl Default for Border {
@@ -92,7 +78,6 @@ impl Default for Border {
             left_color: [0.0, 0.0, 0.0, 0.0],
             right_color: [0.0, 0.0, 0.0, 0.0],
             size: [0.0, 0.0, 0.0, 0.0],
-            style: BorderStyle::Solid,
         }
     }
 }
@@ -127,6 +112,8 @@ pub struct Style {
     pub margin: [Units; 4],
     pub padding: [Units; 4],
     pub border: [Units; 4],
+    pub outline_width: Units,
+    pub outline_offset: Units,
     pub box_sizing: BoxSizing,
     pub flex_direction: FlexDirection,
     pub flex_wrap: FlexWrap,
@@ -152,6 +139,8 @@ impl Default for Style {
             display: Display::Block,
             width: Units::Auto,
             height: Units::Auto,
+            outline_width: Units::Auto,
+            outline_offset: Units::Auto,
             margin: [const { Units::Auto }; 4],
             padding: [const { Units::Auto }; 4],
             border: [const { Units::Auto }; 4],
@@ -402,21 +391,9 @@ impl Rectangle {
     }
 }
 
-pub enum OutlineStyle {
-    None,
-    Solid,
-    Dotted,
-    Dashed,
-    Double,
-    Groove,
-    Ridge,
-    Hidden,
-}
-
 pub struct Outline {
     pub width: f32,
     pub color: [f32; 4],
-    pub style: OutlineStyle,
     pub offset: f32,
 }
 
@@ -425,7 +402,6 @@ impl Default for Outline {
         Self {
             color: [0.0, 0.0, 0.0, 0.0],
             width: 0.0,
-            style: OutlineStyle::Solid,
             offset: 0.0,
         }
     }

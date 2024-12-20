@@ -1,3 +1,9 @@
+struct ProjectionUniform {
+    projection: mat4x4<f32>,
+};
+@group(0) @binding(0)
+var<uniform> projection: ProjectionUniform;
+
 struct InstanceData {
     rect_pos: vec2<f32>,
     rect_size: vec2<f32>,
@@ -24,12 +30,6 @@ struct InstanceData {
 };
 @group(1) @binding(1)
 var<storage, read> instance_data: array<InstanceData>;
-
-struct ProjectionUniform {
-    projection: mat4x4<f32>,
-};
-@group(0) @binding(0)
-var<uniform> projection: ProjectionUniform;
 
 struct VertexInput {
     @location(0) position: vec2<f32>,
@@ -100,9 +100,11 @@ fn vs_main(
         outline_width + outline_offset
     );
     out.rect_size = scaled_dimensions.zw - vec2<f32>(
-        (border_size.x + border_size.z),
-        (border_size.y + border_size.w)
-    ) * scale;
+        border_size.x + border_size.z,
+        border_size.y + border_size.w
+    ) * scale - vec2<f32>(
+        outline_width + outline_offset
+    ) * 2;
     out.border_radius = instance.border_radius * vec4<f32>(scale, scale);
     out.border_size = border_size;
     out.outline_width = outline_width;

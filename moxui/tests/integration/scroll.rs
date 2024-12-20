@@ -65,6 +65,9 @@ pub fn scroll(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                             Units::Px(0.0),
                             calc!(50vw - 75px),
                         )
+                        .set_outline_offset(Units::Px(10.0))
+                        .set_outline_width(Units::Px(2.0))
+                        .set_outline_color(1.0, 0.0, 0.0, 1.0)
                 })
         },
     )
