@@ -1,17 +1,6 @@
-mod display_block;
-mod display_inline;
-mod display_inline_block;
-mod position_absolute;
-mod position_relative;
-mod scroll;
+mod css2;
 
-use display_block::display_block;
-use display_inline::display_inline;
-use display_inline_block::display_inline_block;
 use moxui::tree;
-use position_absolute::position_absolute;
-use position_relative::position_relative;
-use scroll::scroll;
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
@@ -32,8 +21,8 @@ fn main() -> Result<(), EventLoopError> {
 
 #[derive(Default)]
 pub struct App<'window> {
-    window: Option<Arc<Window>>,
     wgpu_ctx: Option<WgpuCtx<'window>>,
+    window: Option<Arc<Window>>,
 }
 
 impl<'window> ApplicationHandler for App<'window> {
@@ -47,12 +36,7 @@ impl<'window> ApplicationHandler for App<'window> {
             );
             self.window = Some(window.clone());
             let mut wgpu_ctx = WgpuCtx::new(window.clone());
-            wgpu_ctx.trees.push(display_block(&wgpu_ctx));
-            wgpu_ctx.trees.push(display_inline(&wgpu_ctx));
-            wgpu_ctx.trees.push(display_inline_block(&wgpu_ctx));
-            wgpu_ctx.trees.push(position_relative(&wgpu_ctx));
-            wgpu_ctx.trees.push(position_absolute(&wgpu_ctx));
-            wgpu_ctx.trees.push(scroll(&wgpu_ctx));
+            wgpu_ctx.trees.extend(css2::css2(&wgpu_ctx));
 
             self.wgpu_ctx = Some(wgpu_ctx);
         }
@@ -66,14 +50,10 @@ impl<'window> ApplicationHandler for App<'window> {
     ) {
         match event {
             WindowEvent::CloseRequested => {
-                let Some(wgpu_ctx) = self.wgpu_ctx.take() else {
-                    return;
-                };
-                drop(wgpu_ctx);
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if let Some(wgpu_ctx) = &self.wgpu_ctx {
+                if let Some(wgpu_ctx) = &mut self.wgpu_ctx {
                     wgpu_ctx.draw();
                 }
             }
@@ -102,7 +82,6 @@ impl<'window> ApplicationHandler for App<'window> {
                     }
                     NamedKey::ArrowRight => {
                         if wgpu_ctx.index == wgpu_ctx.trees.len() - 1 {
-                            drop(wgpu_ctx);
                             event_loop.exit();
                             return;
                         }
@@ -184,7 +163,7 @@ impl<'window> WgpuCtx<'window> {
         }
     }
 
-    pub fn draw(&self) {
+    pub fn draw(&mut self) {
         let surface_texture = self
             .surface
             .get_current_texture()
@@ -210,7 +189,7 @@ impl<'window> WgpuCtx<'window> {
             occlusion_query_set: None,
         });
 
-        self.trees[self.index].render(&self.device, &mut rpass);
+        self.trees[self.index].render(&self.device, &self.queue, &mut rpass);
 
         drop(rpass);
 

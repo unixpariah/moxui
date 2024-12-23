@@ -7,6 +7,8 @@ use flexbox::{
 };
 use std::{rc::Rc, sync::RwLock};
 
+use crate::tree::State;
+
 #[repr(C, align(16))]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct InstanceData {
@@ -139,11 +141,11 @@ impl Default for Style {
             display: Display::Block,
             width: Units::Auto,
             height: Units::Auto,
-            outline_width: Units::Auto,
-            outline_offset: Units::Auto,
-            margin: [const { Units::Auto }; 4],
-            padding: [const { Units::Auto }; 4],
-            border: [const { Units::Auto }; 4],
+            outline_width: Units::Px(0.0),
+            outline_offset: Units::Px(0.0),
+            margin: [const { Units::Px(0.0) }; 4],
+            padding: [const { Units::Px(0.0) }; 4],
+            border: [const { Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
             flex_direction: FlexDirection::Row,
             flex_wrap: FlexWrap::Nowrap,
@@ -157,12 +159,6 @@ impl Default for Style {
             flex_basis: FlexBasis::Auto,
         }
     }
-}
-
-pub struct State {
-    pub viewport: (f32, f32),
-    pub scroll: (f32, f32),
-    pub dpi: f32,
 }
 
 pub struct Rectangle {

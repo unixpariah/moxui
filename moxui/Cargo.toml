@@ -8,6 +8,7 @@ bytemuck = { version = "1.19.0", features = ["derive"] }
 calc_macro = { version = "0.1.0", path = "../proc_macros" }
 calc_units = { version = "0.1.0", path = "../calc_units" }
 env_logger = "0.11.5"
+glyphon = "0.7.0"
 wgpu = "23.0.0"
 
 [dev-dependencies]

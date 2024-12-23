@@ -1,22 +1,23 @@
 mod node;
+mod text;
 
-use crate::{
-    buffers,
-    rectangle::{self, InstanceData, State},
-};
-use calc_units::Context;
+use crate::buffers;
+use glyphon::{Color, TextArea, TextBounds};
+use node::Node;
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
     sync::RwLock,
 };
+use text::Text;
 
 pub struct Tree {
-    render_pipeline: wgpu::RenderPipeline,
-    projection_uniform: buffers::ProjectionUniform,
-    index_buffer: buffers::IndexBuffer,
-    generic_rect: buffers::VertexBuffer,
-    node: Node,
+    pub render_pipeline: wgpu::RenderPipeline,
+    pub projection_uniform: buffers::ProjectionUniform,
+    pub index_buffer: buffers::IndexBuffer,
+    pub generic_rect: buffers::VertexBuffer,
+    pub node: node::Node,
+    pub text: text::Text,
 }
 
 pub struct Config {
@@ -26,18 +27,26 @@ pub struct Config {
     pub format: wgpu::TextureFormat,
 }
 
+pub struct State {
+    pub viewport: (f32, f32),
+    pub scroll: (f32, f32),
+    pub dpi: f32,
+}
+
 impl Tree {
-    pub fn new<F>(device: &wgpu::Device, config: &Config, f: F) -> Self
+    pub fn new<F>(device: &wgpu::Device, queue: &wgpu::Queue, config: &Config, f: F) -> Self
     where
-        F: Fn(Node) -> Node,
+        F: Fn(node::Node) -> node::Node,
     {
+        let text = Text::new(device, queue, config);
+
         let state = State {
             viewport: (config.width as f32, config.height as f32),
             scroll: (0.0, 0.0),
             dpi: config.dpi,
         };
 
-        let mut node = Node::new(Rc::new(RwLock::new(state)));
+        let mut node = node::Node::new(Rc::new(RwLock::new(state)));
         node.width = config.width as f32;
         node.height = config.height as f32;
         let node = f(node);
@@ -132,6 +141,7 @@ impl Tree {
         ];
 
         Self {
+            text,
             render_pipeline,
             index_buffer: buffers::IndexBuffer::new(device, &[0, 1, 3, 1, 2, 3]),
             generic_rect: buffers::VertexBuffer::new(device, &generic_rect_vertices),
@@ -173,24 +183,52 @@ impl Tree {
         state.viewport = (width, height);
     }
 
-    pub fn render(&self, device: &wgpu::Device, render_pass: &mut wgpu::RenderPass) {
+    pub fn render(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
         let mut instance_data = Vec::new();
-        self.collect_instances(&mut instance_data);
+        let mut buffers = Vec::new();
+
+        self.collect_instances(&mut instance_data, &mut buffers);
+
+        let text_data = buffers
+            .iter()
+            .map(|buffer| TextArea {
+                buffer,
+                top: 10.0,
+                left: 10.0,
+                scale: 1.0,
+                bounds: TextBounds {
+                    left: 0,
+                    top: 0,
+                    right: 600,
+                    bottom: 160,
+                },
+                default_color: Color::rgb(255, 255, 255),
+                custom_glyphs: &[],
+            })
+            .collect();
+
         let storage_buffer = buffers::StorageBuffer::new(device, instance_data.into());
 
         render_pass.set_pipeline(&self.render_pipeline);
-
         render_pass.set_bind_group(0, &self.projection_uniform.bind_group, &[]);
         render_pass.set_bind_group(1, &storage_buffer.bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.generic_rect.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.index_buffer.size(), 0, 0..storage_buffer.len());
+
+        self.text.render(device, queue, render_pass, text_data);
     }
 
     pub fn finish(mut self) -> Self {
         let a = self.position_children();
         self.width = self.width.max(a.0);
         self.height = self.height.max(a.1);
+
         self
     }
 }
@@ -205,212 +243,5 @@ impl Deref for Tree {
 impl DerefMut for Tree {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.node
-    }
-}
-
-pub struct Node {
-    pub children: Vec<Node>,
-    pub data: rectangle::Rectangle,
-}
-
-impl Deref for Node {
-    type Target = rectangle::Rectangle;
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl DerefMut for Node {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
-
-// Recursively collect children with display: contents; parent and temporarily 'reparent' them
-pub fn collect_children(children: &mut Vec<Node>) -> Vec<&mut Node> {
-    children
-        .iter_mut()
-        .flat_map(|child| {
-            if child.style.display == rectangle::Display::Contents {
-                collect_children(&mut child.children)
-            } else {
-                vec![child]
-            }
-        })
-        .collect()
-}
-
-impl Node {
-    pub fn new(state: Rc<RwLock<State>>) -> Self {
-        return Self {
-            data: rectangle::Rectangle::new(state),
-            children: Vec::new(),
-        };
-    }
-
-    pub fn position_children(&mut self) -> (f32, f32) {
-        let state = self.state.clone();
-        let state = state.read().unwrap();
-
-        let mut current_pos = (
-            self.x + self.margin[3] + self.padding[3],
-            self.y + self.margin[0] + self.padding[0],
-        );
-
-        let mut total_size = (0.0, 0.0);
-        let width = self.width;
-        let height = self.height;
-
-        let mut children = collect_children(&mut self.children);
-        children.iter_mut().for_each(|child| {
-            let hor_context = Context {
-                parent_size: width,
-                viewport: state.viewport,
-                dpi: state.dpi,
-                auto: 0.0,
-            };
-
-            child.outline.width = child.style.outline_width.to_px(&hor_context);
-            child.outline.offset = child.style.outline_offset.to_px(&hor_context);
-
-            (0..4).for_each(|i| {
-                child.padding[i] = child.style.padding[i].to_px(&hor_context);
-                child.margin[i] = child.style.margin[i].to_px(&hor_context);
-                child.border.size[i] = child.style.border[i].to_px(&hor_context);
-            });
-
-            match child.style.display {
-                rectangle::Display::Block => {
-                    (child.x, child.y) = (0.0, current_pos.1.max(total_size.1));
-
-                    child.width = child.style.width.to_px(&Context {
-                        parent_size: width,
-                        viewport: state.viewport,
-                        dpi: state.dpi,
-                        auto: width,
-                    });
-                    let s = child.position_children();
-                    child.height = child.style.height.to_px(&Context {
-                        parent_size: height,
-                        viewport: state.viewport,
-                        dpi: state.dpi,
-                        auto: s.1,
-                    });
-
-                    let child_extents = child.get_extents();
-                    current_pos.0 = 0.0;
-                    current_pos.1 = child.y + child_extents.height;
-                    total_size.0 = child_extents.width.max(total_size.0);
-                    total_size.1 += child_extents.height;
-                }
-                rectangle::Display::Inline => {
-                    (child.width, child.height) = child.position_children();
-                    child.height -=
-                        child.margin[0] + child.margin[2] + child.padding[0] + child.padding[2];
-
-                    let child_extents = child.get_extents();
-
-                    if current_pos.0 + child_extents.width >= width {
-                        current_pos.0 = 0.0;
-                        current_pos.1 = total_size.1;
-                    }
-
-                    (child.x, child.y) = current_pos;
-
-                    current_pos.0 += child_extents.width;
-                    total_size.0 = current_pos.0.max(total_size.0);
-                    total_size.1 = (current_pos.1 + child_extents.height).max(total_size.1);
-                }
-                rectangle::Display::InlineBlock => {
-                    let s = child.position_children();
-                    child.width = child.style.width.to_px(&Context {
-                        parent_size: width,
-                        viewport: state.viewport,
-                        dpi: state.dpi,
-                        auto: s.0,
-                    });
-                    child.height = child.style.height.to_px(&Context {
-                        parent_size: height,
-                        viewport: state.viewport,
-                        dpi: state.dpi,
-                        auto: s.1,
-                    });
-
-                    let child_extents = child.get_extents();
-
-                    if current_pos.0 + child_extents.width > width && child_extents.width < width {
-                        current_pos.0 = 0.0;
-                        current_pos.1 = total_size.1;
-                    }
-
-                    (child.x, child.y) = current_pos;
-
-                    current_pos.0 += child_extents.width;
-                    total_size.0 = current_pos.0.max(total_size.0);
-                    total_size.1 = (current_pos.1 + child_extents.height).max(total_size.1);
-                }
-                _ => {}
-            }
-
-            let hor_context = &Context {
-                parent_size: width,
-                viewport: state.viewport,
-                dpi: state.dpi,
-                auto: 0.0,
-            };
-            let vert_context = &Context {
-                parent_size: height,
-                viewport: state.viewport,
-                dpi: state.dpi,
-                auto: 0.0,
-            };
-
-            match child.style.position {
-                rectangle::Position::Static | rectangle::Position::Sticky => {}
-                rectangle::Position::Relative => {
-                    child.x += child.style.top.to_px(&hor_context)
-                        - child.style.bottom.to_px(&hor_context);
-                    child.y += child.style.left.to_px(&vert_context)
-                        - child.style.right.to_px(&vert_context);
-                }
-                rectangle::Position::Fixed => {
-                    child.x = child.style.top.to_px(&hor_context);
-                    child.y = child.style.left.to_px(&hor_context);
-                }
-                rectangle::Position::Absolute => {
-                    child.y = child.style.top.to_px(&vert_context);
-                    child.x = child.style.left.to_px(&hor_context);
-                }
-            }
-        });
-
-        (
-            total_size.0 + self.margin[3] + self.margin[1] + self.padding[3] + self.padding[1],
-            total_size.1 + self.margin[0] + self.margin[2] + self.padding[0] + self.padding[2],
-        )
-    }
-
-    pub fn add_child<F>(mut self, f: F) -> Self
-    where
-        F: Fn(Node) -> Node,
-    {
-        let node = f(Node::new(self.state.clone()));
-        self.children.push(node);
-
-        self
-    }
-
-    fn collect_instances(&self, instance_data: &mut Vec<InstanceData>) {
-        if self.style.display == rectangle::Display::None {
-            return;
-        }
-
-        if self.style.display != rectangle::Display::Contents {
-            instance_data.push(self.data.get_instance_data());
-        }
-
-        self.children
-            .iter()
-            .for_each(|child| child.collect_instances(instance_data));
     }
 }
