@@ -190,25 +190,35 @@ impl Tree {
         render_pass: &mut wgpu::RenderPass,
     ) {
         let mut instance_data = Vec::new();
-        let mut buffers = Vec::new();
+        let mut text_data = Vec::new();
 
-        self.collect_instances(&mut instance_data, &mut buffers);
+        self.collect_instances(&mut instance_data, &mut text_data);
 
-        let text_data = buffers
+        let text_data = text_data
             .iter()
-            .map(|buffer| TextArea {
-                buffer,
-                top: 10.0,
-                left: 10.0,
-                scale: 1.0,
-                bounds: TextBounds {
-                    left: 0,
-                    top: 0,
-                    right: 600,
-                    bottom: 160,
-                },
-                default_color: Color::rgb(255, 255, 255),
-                custom_glyphs: &[],
+            .map(|text_data| {
+                let (width, total_lines) = text_data
+                    .buffer
+                    .layout_runs()
+                    .fold((0.0, 0usize), |(width, total_lines), run| {
+                        (run.line_w.max(width), total_lines + 1)
+                    });
+
+                TextArea {
+                    buffer: &text_data.buffer,
+                    top: text_data.x,
+                    left: text_data.y,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: 0,
+                        top: 0,
+                        right: width as i32,
+                        bottom: (total_lines as f32 * text_data.buffer.metrics().line_height)
+                            as i32,
+                    },
+                    default_color: Color::rgb(255, 255, 255),
+                    custom_glyphs: &[],
+                }
             })
             .collect();
 

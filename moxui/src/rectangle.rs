@@ -1,10 +1,4 @@
-mod flexbox;
-
 use calc_units::{Context, Units};
-use flexbox::{
-    AlignContent, AlignItems, AlignSelf, FlexBasis, FlexDirection, FlexGrow, FlexShrink, FlexWrap,
-    JustifyContent, Order,
-};
 use std::{rc::Rc, sync::RwLock};
 
 use crate::tree::State;
@@ -50,12 +44,6 @@ pub enum Position {
     Sticky,
 }
 
-pub enum Float {
-    Left,
-    Right,
-    None,
-}
-
 #[derive(PartialEq)]
 pub enum BoxSizing {
     ContentBox,
@@ -89,15 +77,7 @@ pub enum Display {
     Inline,
     Block,
     InlineBlock,
-    Flex,
     Contents,
-    InlineFlex,
-    Grid,
-    InlineGrid,
-    Table,
-    InlineTable,
-    ListItem,
-    RunIn,
     None,
 }
 
@@ -107,7 +87,6 @@ pub struct Style {
     pub bottom: Units,
     pub left: Units,
     pub position: Position,
-    pub float: Float,
     pub display: Display,
     pub width: Units,
     pub height: Units,
@@ -117,16 +96,6 @@ pub struct Style {
     pub outline_width: Units,
     pub outline_offset: Units,
     pub box_sizing: BoxSizing,
-    pub flex_direction: FlexDirection,
-    pub flex_wrap: FlexWrap,
-    pub justify_content: JustifyContent,
-    pub align_items: AlignItems,
-    pub align_content: AlignContent,
-    pub align_self: AlignSelf,
-    pub order: Order,
-    pub flex_grow: FlexGrow,
-    pub flex_shrink: FlexShrink,
-    pub flex_basis: FlexBasis,
 }
 
 impl Default for Style {
@@ -137,7 +106,6 @@ impl Default for Style {
             bottom: Units::Auto,
             left: Units::Auto,
             position: Position::Static,
-            float: Float::None,
             display: Display::Block,
             width: Units::Auto,
             height: Units::Auto,
@@ -147,16 +115,6 @@ impl Default for Style {
             padding: [const { Units::Px(0.0) }; 4],
             border: [const { Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
-            flex_direction: FlexDirection::Row,
-            flex_wrap: FlexWrap::Nowrap,
-            justify_content: JustifyContent::FlexStart,
-            align_items: AlignItems::Stretch,
-            align_content: AlignContent::Stretch,
-            align_self: AlignSelf::Auto,
-            order: Order(0),
-            flex_grow: FlexGrow(0),
-            flex_shrink: FlexShrink(1),
-            flex_basis: FlexBasis::Auto,
         }
     }
 }

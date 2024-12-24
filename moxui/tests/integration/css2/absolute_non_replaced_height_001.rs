@@ -6,8 +6,6 @@ use crate::WgpuCtx;
 pub fn absolute_non_replaced_height_001(wgpu_ctx: &WgpuCtx) -> tree::Tree {
     let config = &wgpu_ctx.surface_config;
 
-    // Test passes the a filled blue square touches the upper-left corner of the black box.
-
     moxui::tree::Tree::new(
         &wgpu_ctx.device,
         &wgpu_ctx.queue,
@@ -19,6 +17,7 @@ pub fn absolute_non_replaced_height_001(wgpu_ctx: &WgpuCtx) -> tree::Tree {
         },
         |surface| {
             surface
+                .add_child(|item| item.set_content("Test passes the a filled blue square touches the upper-left corner of the black box"))
                 .add_child(|item| {
                     item.set_position(moxui::rectangle::Position::Absolute)
                         .set_coordinates(Units::In(1.0), Units::Auto, Units::Auto, Units::Auto)
@@ -39,7 +38,6 @@ pub fn absolute_non_replaced_height_001(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                                 .set_size(Units::In(1.0), Units::In(1.0))
                         })
                 })
-                .add_child(|item| item.set_content("test"))
         },
     )
     .finish()

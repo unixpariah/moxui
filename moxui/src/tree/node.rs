@@ -215,7 +215,7 @@ impl Node {
     pub(crate) fn collect_instances(
         &self,
         instance_data: &mut Vec<InstanceData>,
-        buffers: &mut Vec<Buffer>,
+        buffers: &mut Vec<TextData>,
     ) {
         if self.style.display == rectangle::Display::None {
             return;
@@ -224,7 +224,11 @@ impl Node {
         if self.style.display != rectangle::Display::Contents {
             instance_data.push(self.data.get_instance_data());
             if let Some(text) = &self.text {
-                buffers.push(text.buffer.clone());
+                buffers.push(TextData {
+                    x: self.data.x,
+                    y: self.data.y,
+                    buffer: text.buffer.clone(),
+                });
             }
         }
 
@@ -232,6 +236,12 @@ impl Node {
             .iter()
             .for_each(|child| child.collect_instances(instance_data, buffers));
     }
+}
+
+pub struct TextData {
+    pub x: f32,
+    pub y: f32,
+    pub buffer: Buffer,
 }
 
 impl Node {
