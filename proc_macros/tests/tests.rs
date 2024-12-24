@@ -1,7 +1,9 @@
 use calc_macro::calc;
 
 static CONTEXT: calc_units::Context = calc_units::Context {
+    root_font_size: 16.0,
     viewport: (1920.0, 1080.0),
+    parent_font_size: 16.0,
     parent_size: 200.0,
     auto: 0.0,
     dpi: 97.1,

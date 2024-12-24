@@ -1,5 +1,3 @@
-# CSS Level 3 TODO List
-
 ## Selectors
 - [ ] Universal Selector (`*`)
 - [ ] Type Selector (`element`)
@@ -81,6 +79,9 @@
 - [ ] Text Transform (`text-transform`)
 - [ ] White Space (`white-space`)
 - [ ] Text Shadow (`text-shadow`)
+- [x] Text Units
+  - [x] `rem`
+  - [x] `em`
 
 ## Backgrounds and Borders
 - [x] Background Color (`background-color`)

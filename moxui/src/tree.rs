@@ -28,6 +28,7 @@ pub struct Config {
 }
 
 pub struct State {
+    pub root_font_size: f32,
     pub viewport: (f32, f32),
     pub scroll: (f32, f32),
     pub dpi: f32,
@@ -41,6 +42,7 @@ impl Tree {
         let text = Text::new(device, queue, config);
 
         let state = State {
+            root_font_size: 16.0, // TODO probably should not hard code it
             viewport: (config.width as f32, config.height as f32),
             scroll: (0.0, 0.0),
             dpi: config.dpi,

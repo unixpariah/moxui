@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub enum Units {
     Px(f32),
     Perc(f32),
@@ -9,10 +10,13 @@ pub enum Units {
     Mm(f32),
     Pt(f32),
     Pc(f32),
+    Em(f32),
+    Rem(f32),
     Calc(Box<CalcExpr>),
     Auto,
 }
 
+#[derive(Clone, Debug)]
 pub enum CalcExpr {
     Value(Units),
     Add(Box<CalcExpr>, Box<CalcExpr>),
@@ -48,6 +52,8 @@ impl Units {
             Self::Mm(num) => *num / 25.4 * context.dpi,
             Self::Pt(num) => *num / 72.0 * context.dpi,
             Self::Pc(num) => *num * 12.0 / 72.0 * context.dpi,
+            Self::Em(num) => *num * context.parent_font_size,
+            Self::Rem(num) => *num * context.root_font_size,
             Self::Calc(expr) => expr.evaluate(context),
             Self::Auto => context.auto,
         }
@@ -55,7 +61,9 @@ impl Units {
 }
 
 pub struct Context {
+    pub root_font_size: f32,
     pub parent_size: f32,
+    pub parent_font_size: f32,
     pub viewport: (f32, f32),
     pub auto: f32,
     pub dpi: f32,

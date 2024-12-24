@@ -1,7 +1,7 @@
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
-    sync::RwLock,
+    sync::{RwLock, RwLockReadGuard},
 };
 
 use crate::rectangle::{self, InstanceData};
@@ -13,6 +13,11 @@ use super::State;
 pub struct Text {
     pub buffer: Buffer,
     pub font_system: FontSystem,
+}
+
+struct ParentState {
+    width: f32,
+    font_size: f32,
 }
 
 pub struct Node {
@@ -57,6 +62,64 @@ impl Node {
         };
     }
 
+    fn get_parent_state(&self) -> ParentState {
+        ParentState {
+            width: self.width,
+            font_size: self.font_size,
+        }
+    }
+
+    fn update_layout_properties(
+        &mut self,
+        parent_state: &ParentState,
+        state: &RwLockReadGuard<'_, State>,
+    ) {
+        let hor_context = Context {
+            root_font_size: state.root_font_size,
+            parent_size: parent_state.width,
+            viewport: state.viewport,
+            dpi: state.dpi,
+            parent_font_size: parent_state.font_size,
+            auto: 0.0,
+        };
+
+        self.outline.width = self.style.outline_width.to_px(&hor_context);
+        self.outline.offset = self.style.outline_offset.to_px(&hor_context);
+
+        (0..4).for_each(|i| {
+            self.padding[i] = self.style.padding[i].to_px(&hor_context);
+            self.margin[i] = self.style.margin[i].to_px(&hor_context);
+            self.border.size[i] = self.style.border[i].to_px(&hor_context);
+        });
+
+        self.font_size = self.style.font_size.to_px(&Context {
+            root_font_size: state.root_font_size,
+            parent_size: parent_state.font_size,
+            parent_font_size: parent_state.font_size,
+            viewport: state.viewport,
+            dpi: state.dpi,
+            auto: 0.0,
+        });
+
+        self.line_height = self.style.line_height.to_px(&Context {
+            root_font_size: state.root_font_size,
+            parent_size: self.font_size,
+            parent_font_size: parent_state.font_size,
+            viewport: state.viewport,
+            dpi: state.dpi,
+            auto: 0.0,
+        });
+
+        let font_size = self.font_size;
+        let line_height = self.line_height;
+        if let Some(text) = &mut self.text {
+            text.buffer.set_metrics(
+                &mut text.font_system,
+                glyphon::Metrics::new(font_size, line_height),
+            );
+        }
+    }
+
     pub fn position_children(&mut self) -> (f32, f32) {
         let state = self.state.clone();
         let state = state.read().unwrap();
@@ -72,16 +135,28 @@ impl Node {
         let width = self.width;
         let height = self.height;
 
+        let parent_state = self.get_parent_state();
+
         let mut children = collect_children(&mut self.children);
         children.iter_mut().for_each(|child| {
+            child.update_layout_properties(&parent_state, &state);
+
+            // update position
+
+            // update size
+
             let hor_context = &Context {
+                root_font_size: state.root_font_size,
                 parent_size: width,
+                parent_font_size: parent_state.font_size,
                 viewport: state.viewport,
                 dpi: state.dpi,
                 auto: 0.0,
             };
             let vert_context = &Context {
+                root_font_size: state.root_font_size,
                 parent_size: height,
+                parent_font_size: parent_state.font_size,
                 viewport: state.viewport,
                 dpi: state.dpi,
                 auto: 0.0,
@@ -106,35 +181,23 @@ impl Node {
                 }
             }
 
-            let hor_context = Context {
-                parent_size: width,
-                viewport: state.viewport,
-                dpi: state.dpi,
-                auto: 0.0,
-            };
-
-            child.outline.width = child.style.outline_width.to_px(&hor_context);
-            child.outline.offset = child.style.outline_offset.to_px(&hor_context);
-
-            (0..4).for_each(|i| {
-                child.padding[i] = child.style.padding[i].to_px(&hor_context);
-                child.margin[i] = child.style.margin[i].to_px(&hor_context);
-                child.border.size[i] = child.style.border[i].to_px(&hor_context);
-            });
-
             match child.style.display {
                 rectangle::Display::Block => {
                     //(child.x, child.y) = (0.0, current_pos.1.max(total_size.1));
 
                     child.width = child.style.width.to_px(&Context {
+                        root_font_size: state.root_font_size,
                         parent_size: width,
+                        parent_font_size: parent_state.font_size,
                         viewport: state.viewport,
                         dpi: state.dpi,
                         auto: width,
                     });
                     let s = child.position_children();
                     child.height = child.style.height.to_px(&Context {
+                        root_font_size: state.root_font_size,
                         parent_size: height,
+                        parent_font_size: parent_state.font_size,
                         viewport: state.viewport,
                         dpi: state.dpi,
                         auto: s.1,
@@ -167,13 +230,17 @@ impl Node {
                 rectangle::Display::InlineBlock => {
                     let s = child.position_children();
                     child.width = child.style.width.to_px(&Context {
+                        root_font_size: state.root_font_size,
                         parent_size: width,
+                        parent_font_size: parent_state.font_size,
                         viewport: state.viewport,
                         dpi: state.dpi,
                         auto: s.0,
                     });
                     child.height = child.style.height.to_px(&Context {
+                        root_font_size: state.root_font_size,
                         parent_size: height,
+                        parent_font_size: parent_state.font_size,
                         viewport: state.viewport,
                         dpi: state.dpi,
                         auto: s.1,
@@ -263,6 +330,11 @@ impl Node {
             glyphon::Shaping::Advanced,
         );
 
+        self
+    }
+
+    pub fn set_font_size(mut self, font_size: Units) -> Self {
+        self.style.font_size = font_size;
         self
     }
 

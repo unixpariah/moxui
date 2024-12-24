@@ -96,6 +96,8 @@ pub struct Style {
     pub outline_width: Units,
     pub outline_offset: Units,
     pub box_sizing: BoxSizing,
+    pub font_size: Units,
+    pub line_height: Units,
 }
 
 impl Default for Style {
@@ -115,6 +117,8 @@ impl Default for Style {
             padding: [const { Units::Px(0.0) }; 4],
             border: [const { Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
+            font_size: Units::Px(16.0),
+            line_height: Units::Px(120.0),
         }
     }
 }
@@ -140,6 +144,8 @@ pub struct Rectangle {
     pub rotate: f32,
     pub skew: [f32; 2],
     pub translate: [f32; 2],
+    pub font_size: f32,
+    pub line_height: f32,
 
     pub style: Style,
 
@@ -169,6 +175,8 @@ impl Rectangle {
             rotate: 0.0,
             skew: [0.0, 0.0],
             translate: [0.0, 0.0],
+            font_size: 16.0,
+            line_height: 16.0 * 1.2,
 
             style: Style::default(),
 
@@ -246,7 +254,9 @@ impl Rectangle {
                     y = y.max(
                         state.scroll.1
                             + val.to_px(&Context {
-                                parent_size: 0.0,
+                                root_font_size: state.root_font_size,
+                                parent_size: 0.0, // TODO I have to get parent state in here
+                                parent_font_size: 0.0,
                                 viewport: state.viewport,
                                 dpi: state.dpi,
                                 auto: 0.0,
@@ -257,7 +267,9 @@ impl Rectangle {
                     x = x.max(
                         state.scroll.0
                             + val.to_px(&Context {
+                                root_font_size: state.root_font_size,
                                 parent_size: 0.0,
+                                parent_font_size: 0.0,
                                 viewport: state.viewport,
                                 dpi: state.dpi,
                                 auto: 0.0,
@@ -268,7 +280,9 @@ impl Rectangle {
                     y = (state.viewport.1).max(
                         state.scroll.1
                             + val.to_px(&Context {
+                                root_font_size: state.root_font_size,
                                 parent_size: 0.0,
+                                parent_font_size: 0.0,
                                 viewport: state.viewport,
                                 dpi: state.dpi,
                                 auto: 0.0,
