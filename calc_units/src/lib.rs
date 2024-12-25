@@ -46,7 +46,7 @@ impl Units {
             Self::Perc(num) => (*num / 100.0) * context.parent_size,
             Self::Vw(num) => *num * context.viewport.0 / 100.0,
             Self::Vh(num) => *num * context.viewport.1 / 100.0,
-            Self::Vmin(num) => *num * context.viewport.0.min(context.viewport.1) as f32 / 100.0,
+            Self::Vmin(num) => *num * context.viewport.0.min(context.viewport.1) / 100.0,
             Self::Vmax(num) => *num * context.viewport.0.max(context.viewport.1) / 100.0,
             Self::In(num) => *num * context.dpi,
             Self::Mm(num) => *num / 25.4 * context.dpi,

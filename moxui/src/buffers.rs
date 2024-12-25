@@ -66,11 +66,7 @@ pub struct VertexBuffer(Buffer<Vertex>);
 
 impl VertexBuffer {
     pub fn new(device: &wgpu::Device, vertices: &[Vertex]) -> Self {
-        Self(Buffer::new(
-            device,
-            wgpu::BufferUsages::VERTEX,
-            vertices.into(),
-        ))
+        Self(Buffer::new(device, wgpu::BufferUsages::VERTEX, vertices))
     }
 }
 
@@ -215,5 +211,9 @@ impl<T> StorageBuffer<T> {
 
     pub fn len(&self) -> u32 {
         self.storage.len() as u32
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }

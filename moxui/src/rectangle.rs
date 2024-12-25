@@ -1,4 +1,5 @@
 use calc_units::{Context, Units};
+use glyphon::{Color, FamilyOwned};
 use std::{rc::Rc, sync::RwLock};
 
 use crate::tree::State;
@@ -96,8 +97,10 @@ pub struct Style {
     pub outline_width: Units,
     pub outline_offset: Units,
     pub box_sizing: BoxSizing,
+    pub font_color: Color,
     pub font_size: Units,
     pub line_height: Units,
+    pub font_family: FamilyOwned,
 }
 
 impl Default for Style {
@@ -118,7 +121,9 @@ impl Default for Style {
             border: [const { Units::Px(0.0) }; 4],
             box_sizing: BoxSizing::ContentBox,
             font_size: Units::Px(16.0),
+            font_color: Color::rgb(255, 255, 255),
             line_height: Units::Px(120.0),
+            font_family: FamilyOwned::Serif,
         }
     }
 }
@@ -241,56 +246,80 @@ impl Rectangle {
         let mut y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
             + self.translate[1];
 
-        if self.style.position == Position::Sticky {
-            let state = self.state.read().unwrap();
-
-            match (
-                &self.style.top,
-                &self.style.right,
-                &self.style.bottom,
-                &self.style.left,
-            ) {
-                (val, Units::Auto, Units::Auto, Units::Auto) => {
-                    y = y.max(
-                        state.scroll.1
-                            + val.to_px(&Context {
-                                root_font_size: state.root_font_size,
-                                parent_size: 0.0, // TODO I have to get parent state in here
-                                parent_font_size: 0.0,
-                                viewport: state.viewport,
-                                dpi: state.dpi,
-                                auto: 0.0,
-                            }),
-                    );
+        // TODO: children should have access to their state like width height font size
+        match self.style.position {
+            Position::Sticky => {
+                let state = self.state.read().unwrap();
+                match (
+                    &self.style.top,
+                    &self.style.right,
+                    &self.style.bottom,
+                    &self.style.left,
+                ) {
+                    (val, Units::Auto, Units::Auto, Units::Auto) => {
+                        y = y.max(
+                            state.scroll.1
+                                + val.to_px(&Context {
+                                    root_font_size: state.root_font_size,
+                                    parent_size: 0.0,
+                                    parent_font_size: 0.0,
+                                    viewport: state.viewport,
+                                    dpi: state.dpi,
+                                    auto: 0.0,
+                                }),
+                        );
+                    }
+                    (Units::Auto, Units::Auto, Units::Auto, val) => {
+                        x = x.max(
+                            state.scroll.0
+                                + val.to_px(&Context {
+                                    root_font_size: state.root_font_size,
+                                    parent_size: 0.0,
+                                    parent_font_size: 0.0,
+                                    viewport: state.viewport,
+                                    dpi: state.dpi,
+                                    auto: 0.0,
+                                }),
+                        );
+                    }
+                    (Units::Auto, Units::Auto, val, Units::Auto) => {
+                        y = (state.viewport.1).max(
+                            state.scroll.1
+                                + val.to_px(&Context {
+                                    root_font_size: state.root_font_size,
+                                    parent_size: 0.0,
+                                    parent_font_size: 0.0,
+                                    viewport: state.viewport,
+                                    dpi: state.dpi,
+                                    auto: 0.0,
+                                }),
+                        );
+                    }
+                    _ => {}
                 }
-                (Units::Auto, Units::Auto, Units::Auto, val) => {
-                    x = x.max(
-                        state.scroll.0
-                            + val.to_px(&Context {
-                                root_font_size: state.root_font_size,
-                                parent_size: 0.0,
-                                parent_font_size: 0.0,
-                                viewport: state.viewport,
-                                dpi: state.dpi,
-                                auto: 0.0,
-                            }),
-                    );
-                }
-                (Units::Auto, Units::Auto, val, Units::Auto) => {
-                    y = (state.viewport.1).max(
-                        state.scroll.1
-                            + val.to_px(&Context {
-                                root_font_size: state.root_font_size,
-                                parent_size: 0.0,
-                                parent_font_size: 0.0,
-                                viewport: state.viewport,
-                                dpi: state.dpi,
-                                auto: 0.0,
-                            }),
-                    );
-                }
-                _ => {}
             }
+            Position::Relative => {
+                let state = self.state.read().unwrap();
+                x = self.x
+                    + self.style.top.to_px(&Context {
+                        root_font_size: state.root_font_size,
+                        parent_size: 0.0,
+                        parent_font_size: 0.0,
+                        viewport: state.viewport,
+                        dpi: state.dpi,
+                        auto: 0.0,
+                    });
+                y = self.y
+                    + self.style.left.to_px(&Context {
+                        root_font_size: state.root_font_size,
+                        parent_size: 0.0,
+                        parent_font_size: 0.0,
+                        viewport: state.viewport,
+                        dpi: state.dpi,
+                        auto: 0.0,
+                    });
+            }
+            _ => {}
         }
 
         let width = self.width

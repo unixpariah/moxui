@@ -2,14 +2,13 @@ mod node;
 mod text;
 
 use crate::buffers;
-use glyphon::{Color, TextArea, TextBounds};
+use glyphon::{TextArea, TextBounds};
 use node::Node;
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
     sync::RwLock,
 };
-use text::Text;
 
 pub struct Tree {
     pub render_pipeline: wgpu::RenderPipeline,
@@ -17,7 +16,7 @@ pub struct Tree {
     pub index_buffer: buffers::IndexBuffer,
     pub generic_rect: buffers::VertexBuffer,
     pub node: node::Node,
-    pub text: text::Text,
+    pub text: text::TextContext,
 }
 
 pub struct Config {
@@ -39,27 +38,23 @@ impl Tree {
     where
         F: Fn(node::Node) -> node::Node,
     {
-        let text = Text::new(device, queue, config);
+        let text = text::TextContext::new(device, queue, config);
 
         let state = State {
-            root_font_size: 16.0, // TODO probably should not hard code it
-            viewport: (config.width as f32, config.height as f32),
+            root_font_size: 16.0,
+            viewport: (config.width, config.height),
             scroll: (0.0, 0.0),
             dpi: config.dpi,
         };
 
         let mut node = node::Node::new(Rc::new(RwLock::new(state)));
-        node.width = config.width as f32;
-        node.height = config.height as f32;
+        node.width = config.width;
+        node.height = config.height;
+
         let node = f(node);
 
-        let projection_uniform = buffers::ProjectionUniform::new(
-            device,
-            0.0,
-            config.width as f32,
-            0.0,
-            config.height as f32,
-        );
+        let projection_uniform =
+            buffers::ProjectionUniform::new(device, 0.0, config.width, 0.0, config.height);
 
         let storage_buffer_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -198,29 +193,19 @@ impl Tree {
 
         let text_data = text_data
             .iter()
-            .map(|text_data| {
-                let (width, total_lines) = text_data
-                    .buffer
-                    .layout_runs()
-                    .fold((0.0, 0usize), |(width, total_lines), run| {
-                        (run.line_w.max(width), total_lines + 1)
-                    });
-
-                TextArea {
-                    buffer: &text_data.buffer,
-                    top: text_data.x,
-                    left: text_data.y,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: width as i32,
-                        bottom: (total_lines as f32 * text_data.buffer.metrics().line_height)
-                            as i32,
-                    },
-                    default_color: Color::rgb(255, 255, 255),
-                    custom_glyphs: &[],
-                }
+            .map(|text_data| TextArea {
+                buffer: &text_data.buffer,
+                left: text_data.x,
+                top: text_data.y,
+                scale: 1.0,
+                bounds: TextBounds {
+                    left: text_data.x as i32,
+                    top: text_data.y as i32,
+                    right: (text_data.x + text_data.width) as i32,
+                    bottom: (text_data.y + text_data.height) as i32,
+                },
+                default_color: text_data.color,
+                custom_glyphs: &[],
             })
             .collect();
 
