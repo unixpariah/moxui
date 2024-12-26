@@ -17,7 +17,7 @@ pub fn absolute_non_replaced_height_001(wgpu_ctx: &WgpuCtx) -> tree::Tree {
         },
         |surface| {
             surface
-                .add_child(|item| item.set_content("Test passes the a filled blue square touches the upper-left corner of the black box"))
+                .add_child(|item| item.set_content("Test passes the a filled blue square touches the upper-left corner of the black box").set_background_color(1.0, 0.0, 0.0, 1.0))
                 .add_child(|item| {
                     item.set_position(moxui::rectangle::Position::Absolute)
                         .set_coordinates(Units::In(1.0), Units::Auto, Units::Auto, Units::Auto)

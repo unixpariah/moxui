@@ -144,16 +144,16 @@ impl Node {
         (self.x, self.y) = match (self.style.position, self.style.display) {
             (_, Display::None | Display::Contents) => return,
             (Position::Static | Position::Sticky | Position::Relative, Display::Block) => {
-                (0.0, current_pos.1)
+                (0.0, current_pos.1 - self.height)
             }
             (
                 Position::Static | Position::Sticky | Position::Relative,
                 Display::Inline | Display::InlineBlock,
             ) => {
                 if self.x + self.get_extents().width > parent_state.x + parent_state.width {
-                    (0.0, current_pos.1)
+                    (0.0, current_pos.1 - self.height)
                 } else {
-                    current_pos
+                    (current_pos.0 - self.width, current_pos.1 - self.height)
                 }
             }
             (Position::Fixed | Position::Absolute, _) => (
@@ -207,11 +207,6 @@ impl Node {
 
                 let self_extents = self.get_extents();
 
-                if current_pos.0 + self_extents.width >= parent_state.width {
-                    current_pos.0 = 0.0;
-                    current_pos.1 = total_size.1;
-                }
-
                 current_pos.0 += self_extents.width;
                 total_size.0 = current_pos.0.max(total_size.0);
                 total_size.1 = (current_pos.1 + self_extents.height).max(total_size.1);
@@ -236,13 +231,6 @@ impl Node {
                 });
 
                 let self_extents = self.get_extents();
-
-                if current_pos.0 + self_extents.width > parent_state.width
-                    && self_extents.width < parent_state.width
-                {
-                    current_pos.0 = 0.0;
-                    current_pos.1 = total_size.1;
-                }
 
                 current_pos.0 += self_extents.width;
                 total_size.0 = current_pos.0.max(total_size.0);
@@ -337,7 +325,10 @@ impl Node {
             let mut font_system = FontSystem::new();
 
             self.text = Some(Text {
-                buffer: glyphon::Buffer::new(&mut font_system, glyphon::Metrics::new(30.0, 42.0)),
+                buffer: glyphon::Buffer::new(
+                    &mut font_system,
+                    glyphon::Metrics::new(self.font_size, self.line_height),
+                ),
                 font_system,
             })
         }

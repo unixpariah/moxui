@@ -122,7 +122,7 @@ impl Default for Style {
             box_sizing: BoxSizing::ContentBox,
             font_size: Units::Px(16.0),
             font_color: Color::rgb(255, 255, 255),
-            line_height: Units::Px(120.0),
+            line_height: Units::Perc(120.0),
             font_family: FamilyOwned::Serif,
         }
     }
