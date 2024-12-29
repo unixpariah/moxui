@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Units {
     Px(f32),
     Perc(f32),
@@ -16,7 +16,7 @@ pub enum Units {
     Auto,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum CalcExpr {
     Value(Units),
     Add(Box<CalcExpr>, Box<CalcExpr>),
@@ -57,6 +57,10 @@ impl Units {
             Self::Calc(expr) => expr.evaluate(context),
             Self::Auto => context.auto,
         }
+    }
+
+    pub fn is_auto(&self) -> bool {
+        *self == Self::Auto
     }
 }
 

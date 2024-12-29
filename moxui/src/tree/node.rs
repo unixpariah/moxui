@@ -80,7 +80,7 @@ impl Node {
         parent_state: &ParentState,
         state: &RwLockReadGuard<'_, State>,
     ) {
-        let hor_context = Context {
+        let context = Context {
             root_font_size: state.root_font_size,
             parent_size: parent_state.width,
             viewport: state.viewport,
@@ -89,13 +89,14 @@ impl Node {
             auto: 0.0,
         };
 
-        self.outline.width = self.style.outline_width.to_px(&hor_context);
-        self.outline.offset = self.style.outline_offset.to_px(&hor_context);
+        self.outline.width = self.style.outline_width.to_px(&context);
+        self.outline.offset = self.style.outline_offset.to_px(&context);
 
         (0..4).for_each(|i| {
-            self.padding[i] = self.style.padding[i].to_px(&hor_context);
-            self.margin[i] = self.style.margin[i].to_px(&hor_context);
-            self.border.size[i] = self.style.border[i].to_px(&hor_context);
+            self.padding[i] = self.style.padding[i].to_px(&context);
+            self.border.size[i] = self.style.border_size[i].to_px(&context);
+            self.border.radius[i] = self.style.border_radius[i].to_px(&context);
+            self.margin[i] = self.style.margin[i].to_px(&context);
         });
 
         self.font_size = self.style.font_size.to_px(&Context {
@@ -156,10 +157,32 @@ impl Node {
                     (current_pos.0 - self.width, current_pos.1 - self.height)
                 }
             }
-            (Position::Fixed | Position::Absolute, _) => (
-                parent_state.x + self.style.left.to_px(&context),
-                parent_state.y + self.style.top.to_px(&context),
-            ),
+            (Position::Fixed | Position::Absolute, _) => {
+                let top = self.style.top.to_px(&context);
+                let left = self.style.left.to_px(&context);
+                let bottom = self.style.bottom.to_px(&context);
+                let right = self.style.right.to_px(&context);
+
+                let extents = self.get_extents();
+
+                let x = if !self.style.left.is_auto() {
+                    left
+                } else if !self.style.right.is_auto() {
+                    extents.width - right
+                } else {
+                    0.0
+                };
+
+                let y = if !self.style.top.is_auto() {
+                    top
+                } else if !self.style.bottom.is_auto() {
+                    bottom - extents.height
+                } else {
+                    0.0
+                };
+
+                (x, y)
+            }
         }
     }
 
@@ -268,6 +291,46 @@ impl Node {
             child.update_layout_properties(&parent_state, &state);
             child.update_size(&parent_state, &state, &mut current_pos, &mut total_size);
             child.update_position(&parent_state, &state, current_pos);
+
+            //match (&child.style.margin[1], &child.style.margin[3]) {
+            //    (Units::Auto, Units::Auto) => {
+            //        let margin_context = Context {
+            //            root_font_size: state.root_font_size,
+            //            parent_size: parent_state.width,
+            //            viewport: state.viewport,
+            //            dpi: state.dpi,
+            //            parent_font_size: parent_state.font_size,
+            //            auto: (parent_state.width - total_size.0) / 2.0,
+            //        };
+            //        child.margin[1] = child.style.margin[1].to_px(&margin_context);
+            //        child.margin[3] = child.style.margin[3].to_px(&margin_context);
+            //    }
+            //    (Units::Auto, _) => {
+            //        let margin_context = Context {
+            //            root_font_size: state.root_font_size,
+            //            parent_size: parent_state.width,
+            //            viewport: state.viewport,
+            //            dpi: state.dpi,
+            //            parent_font_size: parent_state.font_size,
+            //            auto: parent_state.width - total_size.0,
+            //        };
+
+            //        child.margin[1] = child.style.margin[1].to_px(&margin_context);
+            //    }
+            //    (_, Units::Auto) => {
+            //        let margin_context = Context {
+            //            root_font_size: state.root_font_size,
+            //            parent_size: parent_state.width,
+            //            viewport: state.viewport,
+            //            dpi: state.dpi,
+            //            parent_font_size: parent_state.font_size,
+            //            auto: parent_state.width - total_size.0,
+            //        };
+
+            //        child.margin[3] = child.style.margin[3].to_px(&margin_context);
+            //    }
+            //    _ => {}
+            //}
         });
 
         self.offset_children();
@@ -365,10 +428,6 @@ impl Node {
         self
     }
 
-    //pub fn set_font_family(mut self, font_family: Units) -> Self {
-    //    self
-    //}
-
     pub fn set_coordinates(mut self, top: Units, right: Units, bottom: Units, left: Units) -> Self {
         self.style.top = top;
         self.style.right = right;
@@ -415,7 +474,7 @@ impl Node {
     }
 
     pub fn set_border_size(mut self, top: Units, right: Units, bottom: Units, left: Units) -> Self {
-        self.style.border = [top, right, bottom, left];
+        self.style.border_size = [top, right, bottom, left];
         self
     }
 
