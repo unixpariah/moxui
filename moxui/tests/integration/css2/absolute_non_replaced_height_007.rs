@@ -35,7 +35,7 @@ pub fn absolute_non_replaced_height_007(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                                 .set_coordinates(
                                     Units::Auto,
                                     Units::Px(0.0),
-                                    Units::Px(200.0),
+                                    Units::Px(0.0),
                                     Units::Px(0.0),
                                 )
                                 .set_margin(
