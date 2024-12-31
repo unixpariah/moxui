@@ -17,6 +17,7 @@ pub fn absolute_non_replaced_height_003(wgpu_ctx: &WgpuCtx) -> tree::Tree {
         },
         |surface| {
             surface
+                .set_background_color(1.0, 0.0, 0.0, 1.0)
                 .add_child(|item| item.set_content("Test passes if a blue rectangle is vertically centered in an hollow black square."))
                 .add_child(|item| {
                 item.set_position(moxui::rectangle::Position::Relative)

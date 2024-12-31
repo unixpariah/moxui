@@ -59,14 +59,12 @@ impl Node {
         }
     }
 
-    fn get_state(&self, state: &State) -> ParentState {
-        let extents = self.get_extents(state);
-
+    fn get_state(&self) -> ParentState {
         ParentState {
             x: self.x,
             y: self.y,
-            width: extents.width,
-            height: extents.height,
+            width: self.width,
+            height: self.height,
             font_size: self.font_size,
         }
     }
@@ -125,15 +123,6 @@ impl Node {
         state: &State,
         current_pos: (f32, f32),
     ) {
-        let context = Context {
-            root_font_size: state.root_font_size,
-            parent_size: parent_state.width,
-            parent_font_size: parent_state.font_size,
-            viewport: state.viewport,
-            dpi: state.dpi,
-            auto: 0.0,
-        };
-
         (self.x, self.y) = match (self.style.position, self.style.display) {
             (_, Display::None | Display::Contents) => return,
             (Position::Static | Position::Sticky | Position::Relative, Display::Block) => {
@@ -150,10 +139,28 @@ impl Node {
                 }
             }
             (Position::Fixed | Position::Absolute, _) => {
-                let top = self.style.top.to_px(&context);
-                let left = self.style.left.to_px(&context);
-                let bottom = self.style.bottom.to_px(&context);
-                let right = self.style.right.to_px(&context);
+                let hor_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.width,
+                    parent_font_size: parent_state.font_size,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    auto: 0.0,
+                };
+
+                let vert_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.height,
+                    parent_font_size: parent_state.font_size,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    auto: 0.0,
+                };
+
+                let top = self.style.top.to_px(&vert_context);
+                let left = self.style.left.to_px(&hor_context);
+                let bottom = self.style.bottom.to_px(&vert_context);
+                let right = self.style.right.to_px(&hor_context);
 
                 let extents = self.get_extents(state);
 
@@ -360,8 +367,8 @@ impl Node {
     }
 
     fn offset_children(&mut self) {
-        let x = self.x;
-        let y = self.y;
+        let x = self.x + (self.margin[3] + self.padding[3] + self.border.size[3]) / 2.0;
+        let y = self.y + (self.margin[0] + self.padding[0] + self.border.size[0]) / 2.0;
 
         self.children.iter_mut().for_each(|child| {
             child.x += x;
@@ -371,13 +378,10 @@ impl Node {
     }
 
     pub fn position_children(&mut self, state: &State) -> (f32, f32) {
-        let mut current_pos = (
-            self.margin[3] + self.padding[3],
-            self.margin[0] + self.padding[0],
-        );
+        let mut current_pos = (0.0, 0.0);
         let mut total_size = (0.0, 0.0);
 
-        let parent_state = self.get_state(state);
+        let parent_state = self.get_state();
 
         collect_children(&mut self.children)
             .iter_mut()
