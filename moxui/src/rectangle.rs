@@ -1,6 +1,5 @@
 use calc_units::{Context, Units};
 use glyphon::{Color, FamilyOwned};
-use std::{rc::Rc, sync::RwLock};
 
 use crate::tree::State;
 
@@ -155,12 +154,10 @@ pub struct Rectangle {
     pub line_height: f32,
 
     pub style: Style,
-
-    pub state: Rc<RwLock<State>>,
 }
 
 impl Rectangle {
-    pub fn new(state: Rc<RwLock<State>>) -> Self {
+    pub fn new() -> Self {
         Self {
             x: 0.0,
             y: 0.0,
@@ -186,12 +183,10 @@ impl Rectangle {
             line_height: 16.0 * 1.2,
 
             style: Style::default(),
-
-            state,
         }
     }
 
-    pub fn get_extents(&self) -> Extents {
+    pub fn get_extents(&self, state: &State) -> Extents {
         if self.style.position == Position::Absolute {
             return Extents {
                 x: self.x,
@@ -202,8 +197,6 @@ impl Rectangle {
         }
 
         if self.style.position == Position::Fixed {
-            let state = self.state.clone();
-            let state = state.read().unwrap();
             return Extents {
                 x: self.x + state.scroll.0,
                 y: self.y + state.scroll.1,
@@ -240,8 +233,8 @@ impl Rectangle {
         }
     }
 
-    pub fn get_instance_data(&self) -> InstanceData {
-        let extents = self.get_extents();
+    pub fn get_instance_data(&self, state: &State) -> InstanceData {
+        let extents = self.get_extents(state);
 
         let mut x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
             + self.translate[0];
@@ -251,7 +244,6 @@ impl Rectangle {
         // TODO: children should have access to their state like width height font size
         match self.style.position {
             Position::Sticky => {
-                let state = self.state.read().unwrap();
                 match (
                     &self.style.top,
                     &self.style.right,
@@ -301,7 +293,6 @@ impl Rectangle {
                 }
             }
             Position::Relative => {
-                let state = self.state.read().unwrap();
                 x = self.x
                     + self.style.top.to_px(&Context {
                         root_font_size: state.root_font_size,

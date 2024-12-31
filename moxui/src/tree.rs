@@ -2,13 +2,10 @@ mod node;
 mod text;
 
 use crate::buffers;
+use calc_units::{Context, Units};
 use glyphon::{TextArea, TextBounds};
 use node::Node;
-use std::{
-    ops::{Deref, DerefMut},
-    rc::Rc,
-    sync::RwLock,
-};
+use std::ops::{Deref, DerefMut};
 
 pub struct Tree {
     pub render_pipeline: wgpu::RenderPipeline,
@@ -17,6 +14,7 @@ pub struct Tree {
     pub generic_rect: buffers::VertexBuffer,
     pub node: node::Node,
     pub text: text::TextContext,
+    pub state: State,
 }
 
 pub struct Config {
@@ -26,6 +24,7 @@ pub struct Config {
     pub format: wgpu::TextureFormat,
 }
 
+#[derive(Clone)]
 pub struct State {
     pub root_font_size: f32,
     pub viewport: (f32, f32),
@@ -47,10 +46,8 @@ impl Tree {
             dpi: config.dpi,
         };
 
-        let mut node = node::Node::new(Rc::new(RwLock::new(state)));
-        node.width = config.width;
-        node.height = config.height;
-
+        let mut node = node::Node::new();
+        node.style.width = Units::Perc(100.0);
         let node = f(node);
 
         let projection_uniform =
@@ -144,40 +141,35 @@ impl Tree {
             generic_rect: buffers::VertexBuffer::new(device, &generic_rect_vertices),
             projection_uniform,
             node,
+            state,
         }
     }
 
     pub fn scroll(&mut self, device: &wgpu::Device, x: f32, y: f32) {
-        let state = self.state.clone();
-        let mut state = state.write().unwrap();
+        let new_x = self.state.scroll.0 + x;
+        let new_y = self.state.scroll.1 + y;
 
-        let new_x = state.scroll.0 + x;
-        let new_y = state.scroll.1 + y;
-
-        state.scroll.0 = new_x.clamp(0.0, self.width - state.viewport.0);
-        state.scroll.1 = new_y.clamp(0.0, self.height - state.viewport.1);
+        self.state.scroll.0 = new_x.clamp(0.0, self.width - self.state.viewport.0);
+        self.state.scroll.1 = new_y.clamp(0.0, self.height - self.state.viewport.1);
 
         self.projection_uniform = buffers::ProjectionUniform::new(
             device,
-            state.scroll.0,
-            state.scroll.0 + state.viewport.0,
-            state.scroll.1,
-            state.scroll.1 + state.viewport.1,
+            self.state.scroll.0,
+            self.state.scroll.0 + self.state.viewport.0,
+            self.state.scroll.1,
+            self.state.scroll.1 + self.state.viewport.1,
         );
     }
 
     pub fn set_viewport(&mut self, device: &wgpu::Device, width: f32, height: f32) {
-        let state = self.state.clone();
-        let mut state = state.write().unwrap();
-
         self.projection_uniform = buffers::ProjectionUniform::new(
             device,
-            state.scroll.0,
-            state.scroll.0 + width,
-            state.scroll.1,
-            state.scroll.1 + height,
+            self.state.scroll.0,
+            self.state.scroll.0 + width,
+            self.state.scroll.1,
+            self.state.scroll.1 + height,
         );
-        state.viewport = (width, height);
+        self.state.viewport = (width, height);
     }
 
     pub fn render(
@@ -189,7 +181,7 @@ impl Tree {
         let mut instance_data = Vec::new();
         let mut text_data = Vec::new();
 
-        self.collect_instances(&mut instance_data, &mut text_data);
+        self.collect_instances(&mut instance_data, &mut text_data, &self.state);
 
         let text_data = text_data
             .iter()
@@ -222,9 +214,25 @@ impl Tree {
     }
 
     pub fn finish(mut self) -> Self {
-        let a = self.position_children();
-        self.width = self.width.max(a.0);
-        self.height = self.height.max(a.1);
+        let state = self.state.clone();
+        let auto = self.position_children(&state);
+
+        self.width = self.style.width.to_px(&Context {
+            root_font_size: self.state.root_font_size,
+            parent_size: self.state.viewport.0,
+            dpi: self.state.dpi,
+            auto: auto.0,
+            parent_font_size: self.state.root_font_size,
+            viewport: self.state.viewport,
+        });
+        self.height = self.style.height.to_px(&Context {
+            root_font_size: self.state.root_font_size,
+            parent_size: self.state.viewport.1,
+            dpi: self.state.dpi,
+            auto: auto.1,
+            parent_font_size: self.state.root_font_size,
+            viewport: self.state.viewport,
+        });
 
         self
     }

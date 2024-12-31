@@ -35,8 +35,7 @@ pub fn absolute_non_replaced_height_006(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                     .set_size(Units::Px(300.0), Units::Px(300.0))
                     .set_position(moxui::rectangle::Position::Relative)
                     .add_child(|item| {
-                        item
-.set_position(moxui::rectangle::Position::Absolute)
+                        item.set_position(moxui::rectangle::Position::Absolute)
                         .set_background_color(0.0, 0.0, 1.0, 1.0)
                         .set_size(Units::Perc(50.0), Units::Px(150.0))
                         .set_margin(
@@ -54,7 +53,7 @@ pub fn absolute_non_replaced_height_006(wgpu_ctx: &WgpuCtx) -> tree::Tree {
                     })
                     .add_child(|item| {
                         item.set_position(moxui::rectangle::Position::Absolute)
-                                .set_background_color(0.0, 0.0, 1.0, 1.0)
+                            .set_background_color(0.0, 0.0, 1.0, 1.0)
                             .set_size(Units::Perc(50.0), Units::Px(150.0))
                             .set_margin(
                                 Units::Px(50.0),

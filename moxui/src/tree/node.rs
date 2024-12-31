@@ -1,8 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    rc::Rc,
-    sync::{RwLock, RwLockReadGuard},
-};
+use std::ops::{Deref, DerefMut};
 
 use crate::rectangle::{self, Display, InstanceData, Position};
 use calc_units::{Context, Units};
@@ -55,16 +51,16 @@ pub fn collect_children(children: &mut [Node]) -> Vec<&mut Node> {
 }
 
 impl Node {
-    pub fn new(state: Rc<RwLock<State>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            data: rectangle::Rectangle::new(state),
+            data: rectangle::Rectangle::new(),
             children: Vec::new(),
             text: None,
         }
     }
 
-    fn get_state(&self) -> ParentState {
-        let extents = self.get_extents();
+    fn get_state(&self, state: &State) -> ParentState {
+        let extents = self.get_extents(state);
 
         ParentState {
             x: self.x,
@@ -75,11 +71,7 @@ impl Node {
         }
     }
 
-    fn update_layout_properties(
-        &mut self,
-        parent_state: &ParentState,
-        state: &RwLockReadGuard<'_, State>,
-    ) {
+    fn update_layout_properties(&mut self, parent_state: &ParentState, state: &State) {
         let context = Context {
             root_font_size: state.root_font_size,
             parent_size: parent_state.width,
@@ -130,7 +122,7 @@ impl Node {
     fn update_position(
         &mut self,
         parent_state: &ParentState,
-        state: &RwLockReadGuard<'_, State>,
+        state: &State,
         current_pos: (f32, f32),
     ) {
         let context = Context {
@@ -151,7 +143,7 @@ impl Node {
                 Position::Static | Position::Sticky | Position::Relative,
                 Display::Inline | Display::InlineBlock,
             ) => {
-                if self.x + self.get_extents().width > parent_state.x + parent_state.width {
+                if self.x + self.get_extents(state).width > parent_state.x + parent_state.width {
                     (0.0, current_pos.1 - self.height)
                 } else {
                     (current_pos.0 - self.width, current_pos.1 - self.height)
@@ -163,7 +155,7 @@ impl Node {
                 let bottom = self.style.bottom.to_px(&context);
                 let right = self.style.right.to_px(&context);
 
-                let extents = self.get_extents();
+                let extents = self.get_extents(state);
 
                 let x = if !self.style.left.is_auto() {
                     left
@@ -186,99 +178,115 @@ impl Node {
         }
     }
 
-    fn apply_auto(&mut self, parent_state: &ParentState, state: &RwLockReadGuard<'_, State>) {
-        let extents = self.get_extents();
-        //match (&self.style.margin[1], &self.style.margin[3]) {
-        //    (Units::Auto, Units::Auto) => {
-        //        let margin_context = Context {
-        //            root_font_size: state.root_font_size,
-        //            parent_size: parent_state.width,
-        //            viewport: state.viewport,
-        //            dpi: state.dpi,
-        //            parent_font_size: parent_state.font_size,
-        //            auto: (parent_state.width - extents.x - self.width) / 2.0,
-        //        };
+    fn apply_auto(&mut self, parent_state: &ParentState, state: &State, current_pos: (f32, f32)) {
+        let extents = self.get_extents(state);
+        let width = self.width
+            + self.padding[3]
+            + self.padding[1]
+            + self.border.size[3]
+            + self.border.size[1]
+            + self.margin[3]
+            + self.margin[1];
 
-        //        self.margin[1] = self.style.margin[1].to_px(&margin_context);
-        //        self.margin[3] = self.style.margin[3].to_px(&margin_context);
-        //    }
-        //    (Units::Auto, _) => {
-        //        let extents = self.get_extents();
+        let height = self.height
+            + self.padding[0]
+            + self.padding[2]
+            + self.border.size[0]
+            + self.border.size[2]
+            + self.margin[0]
+            + self.margin[2];
 
-        //        let margin_context = Context {
-        //            root_font_size: state.root_font_size,
-        //            parent_size: parent_state.width,
-        //            viewport: state.viewport,
-        //            dpi: state.dpi,
-        //            parent_font_size: parent_state.font_size,
-        //            auto: parent_state.width - extents.x - self.width,
-        //        };
+        match (&self.style.margin[1], &self.style.margin[3]) {
+            (Units::Auto, Units::Auto) => {
+                let margin_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.width,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    parent_font_size: parent_state.font_size,
+                    auto: (parent_state.width - extents.x - width) / 2.0,
+                };
 
-        //        self.margin[1] = self.style.margin[1].to_px(&margin_context);
-        //    }
-        //    (_, Units::Auto) => {
-        //        let extents = self.get_extents();
+                self.margin[1] = self.style.margin[1].to_px(&margin_context);
+                self.margin[3] = self.style.margin[3].to_px(&margin_context);
+            }
+            (Units::Auto, _) => {
+                let extents = self.get_extents(state);
 
-        //        let margin_context = Context {
-        //            root_font_size: state.root_font_size,
-        //            parent_size: parent_state.width,
-        //            viewport: state.viewport,
-        //            dpi: state.dpi,
-        //            parent_font_size: parent_state.font_size,
-        //            auto: parent_state.width - extents.x - self.width,
-        //        };
+                let margin_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.width,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    parent_font_size: parent_state.font_size,
+                    auto: parent_state.width - extents.x - width,
+                };
 
-        //        self.margin[3] = self.style.margin[3].to_px(&margin_context);
-        //    }
-        //    _ => {}
-        //}
+                self.margin[1] = self.style.margin[1].to_px(&margin_context);
+            }
+            (_, Units::Auto) => {
+                let extents = self.get_extents(state);
 
-        //match (&self.style.margin[0], &self.style.margin[2]) {
-        //    (Units::Auto, Units::Auto) => {
-        //        let margin_context = Context {
-        //            root_font_size: state.root_font_size,
-        //            parent_size: parent_state.height,
-        //            viewport: state.viewport,
-        //            dpi: state.dpi,
-        //            parent_font_size: parent_state.font_size,
-        //            auto: (parent_state.height - self.y - self.height) / 2.0,
-        //        };
+                let margin_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.width,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    parent_font_size: parent_state.font_size,
+                    auto: parent_state.width - extents.x - width,
+                };
 
-        //        self.margin[0] = self.style.margin[0].to_px(&margin_context);
-        //        self.margin[2] = self.style.margin[2].to_px(&margin_context);
-        //    }
-        //    (Units::Auto, _) => {
-        //        let margin_context = Context {
-        //            root_font_size: state.root_font_size,
-        //            parent_size: parent_state.width,
-        //            viewport: state.viewport,
-        //            dpi: state.dpi,
-        //            parent_font_size: parent_state.font_size,
-        //            auto: parent_state.height - self.y - self.height,
-        //        };
+                self.margin[3] = self.style.margin[3].to_px(&margin_context);
+            }
+            _ => {}
+        }
 
-        //        self.margin[0] = self.style.margin[0].to_px(&margin_context);
-        //    }
-        //    (_, Units::Auto) => {
-        //        let margin_context = Context {
-        //            root_font_size: state.root_font_size,
-        //            parent_size: parent_state.width,
-        //            viewport: state.viewport,
-        //            dpi: state.dpi,
-        //            parent_font_size: parent_state.font_size,
-        //            auto: parent_state.height - self.y - self.height,
-        //        };
+        match (&self.style.margin[0], &self.style.margin[2]) {
+            (Units::Auto, Units::Auto) => {
+                let margin_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.height,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    parent_font_size: parent_state.font_size,
+                    auto: (parent_state.height - current_pos.1) / 2.0,
+                };
 
-        //        self.margin[2] = self.style.margin[2].to_px(&margin_context);
-        //    }
-        //    _ => {}
-        //}
+                self.margin[0] = self.style.margin[0].to_px(&margin_context);
+                self.margin[2] = self.style.margin[2].to_px(&margin_context);
+            }
+            (Units::Auto, _) => {
+                let margin_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.width,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    parent_font_size: parent_state.font_size,
+                    auto: parent_state.height - current_pos.1,
+                };
+
+                self.margin[0] = self.style.margin[0].to_px(&margin_context);
+            }
+            (_, Units::Auto) => {
+                let margin_context = Context {
+                    root_font_size: state.root_font_size,
+                    parent_size: parent_state.width,
+                    viewport: state.viewport,
+                    dpi: state.dpi,
+                    parent_font_size: parent_state.font_size,
+                    auto: parent_state.height - current_pos.1,
+                };
+
+                self.margin[2] = self.style.margin[2].to_px(&margin_context);
+            }
+            _ => {}
+        }
     }
 
     fn update_size(
         &mut self,
         parent_state: &ParentState,
-        state: &RwLockReadGuard<'_, State>,
+        state: &State,
         current_pos: &mut (f32, f32),
         total_size: &mut (f32, f32),
     ) {
@@ -297,7 +305,7 @@ impl Node {
                     dpi: state.dpi,
                     auto: parent_state.width,
                 });
-                let auto = self.position_children().1.max(height);
+                let auto = self.position_children(state).1.max(height);
                 self.height = self.style.height.to_px(&Context {
                     root_font_size: state.root_font_size,
                     parent_size: parent_state.height,
@@ -307,23 +315,23 @@ impl Node {
                     auto,
                 });
 
-                let self_extents = self.get_extents();
+                let self_extents = self.get_extents(state);
                 current_pos.0 = 0.0;
                 current_pos.1 += self_extents.height;
                 total_size.0 = self_extents.width.max(total_size.0);
                 total_size.1 = current_pos.1.max(total_size.1);
             }
             rectangle::Display::Inline => {
-                (self.width, self.height) = self.position_children();
+                (self.width, self.height) = self.position_children(state);
 
-                let self_extents = self.get_extents();
+                let self_extents = self.get_extents(state);
 
                 current_pos.0 += self_extents.width;
                 total_size.0 = current_pos.0.max(total_size.0);
                 total_size.1 = (current_pos.1 + self_extents.height).max(total_size.1);
             }
             rectangle::Display::InlineBlock => {
-                let auto = self.position_children();
+                let auto = self.position_children(state);
                 self.width = self.style.width.to_px(&Context {
                     root_font_size: state.root_font_size,
                     parent_size: parent_state.width,
@@ -341,7 +349,7 @@ impl Node {
                     auto: auto.1.max(height),
                 });
 
-                let self_extents = self.get_extents();
+                let self_extents = self.get_extents(state);
 
                 current_pos.0 += self_extents.width;
                 total_size.0 = current_pos.0.max(total_size.0);
@@ -362,25 +370,23 @@ impl Node {
         });
     }
 
-    pub fn position_children(&mut self) -> (f32, f32) {
-        let state = self.state.clone();
-        let state = state.read().unwrap();
-
+    pub fn position_children(&mut self, state: &State) -> (f32, f32) {
         let mut current_pos = (
             self.margin[3] + self.padding[3],
             self.margin[0] + self.padding[0],
         );
         let mut total_size = (0.0, 0.0);
 
-        let parent_state = self.get_state();
+        let parent_state = self.get_state(state);
 
-        let mut children = collect_children(&mut self.children);
-        children.iter_mut().for_each(|child| {
-            child.update_layout_properties(&parent_state, &state);
-            child.update_size(&parent_state, &state, &mut current_pos, &mut total_size);
-            child.update_position(&parent_state, &state, current_pos);
-            child.apply_auto(&parent_state, &state);
-        });
+        collect_children(&mut self.children)
+            .iter_mut()
+            .for_each(|child| {
+                child.update_layout_properties(&parent_state, state);
+                child.update_size(&parent_state, state, &mut current_pos, &mut total_size);
+                child.update_position(&parent_state, state, current_pos);
+                child.apply_auto(&parent_state, state, current_pos);
+            });
 
         self.offset_children();
 
@@ -391,7 +397,7 @@ impl Node {
     where
         F: Fn(Node) -> Node,
     {
-        let node = f(Node::new(self.state.clone()));
+        let node = f(Node::new());
         self.children.push(node);
 
         self
@@ -401,13 +407,14 @@ impl Node {
         &self,
         instance_data: &mut Vec<InstanceData>,
         text_data: &mut Vec<TextData>,
+        state: &State,
     ) {
         if self.style.display == rectangle::Display::None {
             return;
         }
 
         if self.style.display != rectangle::Display::Contents {
-            instance_data.push(self.data.get_instance_data());
+            instance_data.push(self.data.get_instance_data(state));
             if let Some(text) = &self.text {
                 let (width, height) = text.extents();
 
@@ -424,7 +431,7 @@ impl Node {
 
         self.children
             .iter()
-            .for_each(|child| child.collect_instances(instance_data, text_data));
+            .for_each(|child| child.collect_instances(instance_data, text_data, state));
     }
 }
 
