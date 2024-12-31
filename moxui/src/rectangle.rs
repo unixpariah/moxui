@@ -1,7 +1,7 @@
 use calc_units::{Context, Units};
 use glyphon::{Color, FamilyOwned};
 
-use crate::tree::State;
+use crate::tree::{node::ParentState, State};
 
 #[repr(C, align(16))]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -101,6 +101,8 @@ pub struct Style {
     pub font_size: Units,
     pub line_height: Units,
     pub font_family: FamilyOwned,
+    pub max_width: Units,
+    pub max_height: Units,
 }
 
 impl Default for Style {
@@ -125,6 +127,8 @@ impl Default for Style {
             font_color: Color::rgb(255, 255, 255),
             line_height: Units::Perc(120.0),
             font_family: FamilyOwned::Serif,
+            max_width: Units::Auto,
+            max_height: Units::Auto,
         }
     }
 }
@@ -233,7 +237,7 @@ impl Rectangle {
         }
     }
 
-    pub fn get_instance_data(&self, state: &State) -> InstanceData {
+    pub fn get_instance_data(&self, parent_state: &ParentState, state: &State) -> InstanceData {
         let extents = self.get_extents(state);
 
         let mut x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
@@ -241,7 +245,6 @@ impl Rectangle {
         let mut y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
             + self.translate[1];
 
-        // TODO: children should have access to their state like width height font size
         match self.style.position {
             Position::Sticky => {
                 match (
@@ -255,8 +258,8 @@ impl Rectangle {
                             state.scroll.1
                                 + val.to_px(&Context {
                                     root_font_size: state.root_font_size,
-                                    parent_size: 0.0,
-                                    parent_font_size: 0.0,
+                                    parent_size: parent_state.height,
+                                    parent_font_size: parent_state.font_size,
                                     viewport: state.viewport,
                                     dpi: state.dpi,
                                     auto: 0.0,
@@ -268,8 +271,8 @@ impl Rectangle {
                             state.scroll.0
                                 + val.to_px(&Context {
                                     root_font_size: state.root_font_size,
-                                    parent_size: 0.0,
-                                    parent_font_size: 0.0,
+                                    parent_size: parent_state.width,
+                                    parent_font_size: parent_state.font_size,
                                     viewport: state.viewport,
                                     dpi: state.dpi,
                                     auto: 0.0,
@@ -281,8 +284,8 @@ impl Rectangle {
                             state.scroll.1
                                 + val.to_px(&Context {
                                     root_font_size: state.root_font_size,
-                                    parent_size: 0.0,
-                                    parent_font_size: 0.0,
+                                    parent_size: parent_state.height,
+                                    parent_font_size: parent_state.font_size,
                                     viewport: state.viewport,
                                     dpi: state.dpi,
                                     auto: 0.0,
@@ -296,8 +299,8 @@ impl Rectangle {
                 x = self.x
                     + self.style.top.to_px(&Context {
                         root_font_size: state.root_font_size,
-                        parent_size: 0.0,
-                        parent_font_size: 0.0,
+                        parent_size: parent_state.width,
+                        parent_font_size: parent_state.font_size,
                         viewport: state.viewport,
                         dpi: state.dpi,
                         auto: 0.0,
@@ -305,8 +308,8 @@ impl Rectangle {
                 y = self.y
                     + self.style.left.to_px(&Context {
                         root_font_size: state.root_font_size,
-                        parent_size: 0.0,
-                        parent_font_size: 0.0,
+                        parent_size: parent_state.height,
+                        parent_font_size: parent_state.font_size,
                         viewport: state.viewport,
                         dpi: state.dpi,
                         auto: 0.0,

@@ -6,7 +6,6 @@ use crate::WgpuCtx;
 pub fn absolute_non_replaced_height_004(wgpu_ctx: &WgpuCtx) -> tree::Tree {
     let config = &wgpu_ctx.surface_config;
 
-    // Test passes if a blue rectangle is vertically centered in an hollow black square.
     moxui::tree::Tree::new(
         &wgpu_ctx.device,
         &wgpu_ctx.queue,

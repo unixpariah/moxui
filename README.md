@@ -63,12 +63,12 @@
 
 ## Typography
 - [ ] Fonts
-  - [ ] `font-family`
-  - [ ] `font-size`
+  - [x] `font-family`
+  - [x] `font-size`
   - [ ] `font-style`
   - [ ] `font-weight`
   - [ ] `font-variant`
-- [ ] Line Height (`line-height`)
+- [x] Line Height (`line-height`)
 - [ ] Text Alignment (`text-align`)
 - [ ] Letter Spacing (`letter-spacing`)
 - [ ] Word Spacing (`word-spacing`)
@@ -103,12 +103,12 @@
   - [x] `content`
   - [ ] `flex`
   - [ ] `grid`
-- [ ] Position
+- [x] Position
   - [x] `static`
   - [x] `relative`
   - [x] `absolute`
   - [x] `fixed`
-  - [ ] `sticky`
+  - [x] `sticky`
 - [ ] Float
   - [ ] `float`
   - [ ] `clear`

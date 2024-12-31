@@ -9,18 +9,18 @@ use super::{
     State,
 };
 
-struct ParentState {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    font_size: f32,
+pub struct ParentState {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub font_size: f32,
 }
 
 pub struct Node {
-    pub(crate) children: Vec<Node>,
-    pub(crate) data: rectangle::Rectangle,
-    pub(crate) text: Option<Text>,
+    pub children: Vec<Node>,
+    pub data: rectangle::Rectangle,
+    pub text: Option<Text>,
 }
 
 impl Deref for Node {
@@ -59,7 +59,7 @@ impl Node {
         }
     }
 
-    fn get_state(&self) -> ParentState {
+    pub fn get_state(&self) -> ParentState {
         ParentState {
             x: self.x,
             y: self.y,
@@ -411,6 +411,7 @@ impl Node {
         &self,
         instance_data: &mut Vec<InstanceData>,
         text_data: &mut Vec<TextData>,
+        parent_state: &ParentState,
         state: &State,
     ) {
         if self.style.display == rectangle::Display::None {
@@ -418,7 +419,7 @@ impl Node {
         }
 
         if self.style.display != rectangle::Display::Contents {
-            instance_data.push(self.data.get_instance_data(state));
+            instance_data.push(self.data.get_instance_data(parent_state, state));
             if let Some(text) = &self.text {
                 let (width, height) = text.extents();
 
@@ -433,9 +434,9 @@ impl Node {
             }
         }
 
-        self.children
-            .iter()
-            .for_each(|child| child.collect_instances(instance_data, text_data, state));
+        self.children.iter().for_each(|child| {
+            child.collect_instances(instance_data, text_data, &self.get_state(), state)
+        });
     }
 }
 
@@ -506,6 +507,12 @@ impl Node {
     pub fn set_size(mut self, width: Units, height: Units) -> Self {
         self.style.width = width;
         self.style.height = height;
+        self
+    }
+
+    pub fn set_max_size(mut self, max_width: Units, max_height: Units) -> Self {
+        self.style.max_width = max_width;
+        self.style.max_height = max_height;
         self
     }
 

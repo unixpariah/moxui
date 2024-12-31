@@ -1,4 +1,4 @@
-mod node;
+pub mod node;
 mod text;
 
 use crate::buffers;
@@ -181,7 +181,12 @@ impl Tree {
         let mut instance_data = Vec::new();
         let mut text_data = Vec::new();
 
-        self.collect_instances(&mut instance_data, &mut text_data, &self.state);
+        self.collect_instances(
+            &mut instance_data,
+            &mut text_data,
+            &self.get_state(),
+            &self.state,
+        );
 
         let text_data = text_data
             .iter()
