@@ -43,7 +43,7 @@ impl Units {
     pub fn to_px(&self, context: &Context) -> f32 {
         match self {
             Self::Px(num) => *num,
-            Self::Perc(num) => (*num / 100.0) * context.parent_size,
+            Self::Perc(num) => (*num / 100.0) * context.reference_size,
             Self::Vw(num) => *num * context.viewport.0 / 100.0,
             Self::Vh(num) => *num * context.viewport.1 / 100.0,
             Self::Vmin(num) => *num * context.viewport.0.min(context.viewport.1) / 100.0,
@@ -66,7 +66,7 @@ impl Units {
 
 pub struct Context {
     pub root_font_size: f32,
-    pub parent_size: f32,
+    pub reference_size: f32,
     pub parent_font_size: f32,
     pub viewport: (f32, f32),
     pub auto: f32,

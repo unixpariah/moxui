@@ -109,21 +109,17 @@ pub struct Style {
 
 impl Style {
     pub fn height(&self, context: &Context) -> f32 {
-        let min_context = Context {
-            auto: 0.0,
-            ..*context
-        };
-
         let height = self.height.to_px(context);
 
-        let max_context = Context {
-            auto: height,
-            ..*context
-        };
-
         height
-            .max(self.min_height.to_px(&min_context))
-            .min(self.max_height.to_px(&max_context))
+            .max(self.min_height.to_px(&Context {
+                auto: 0.0,
+                ..*context
+            }))
+            .min(self.max_height.to_px(&Context {
+                auto: height,
+                ..*context
+            }))
     }
 
     pub fn width(&self, context: &Context) -> f32 {
@@ -287,6 +283,15 @@ impl Rectangle {
         let mut y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
             + self.translate[1];
 
+        let context = Context {
+            root_font_size: state.root_font_size,
+            parent_font_size: parent_state.font_size,
+            viewport: state.viewport,
+            dpi: state.dpi,
+            reference_size: 0.0,
+            auto: 0.0,
+        };
+
         match self.style.position {
             Position::Sticky => {
                 match (
@@ -299,12 +304,8 @@ impl Rectangle {
                         y = y.max(
                             state.scroll.1
                                 + val.to_px(&Context {
-                                    root_font_size: state.root_font_size,
-                                    parent_size: parent_state.height,
-                                    parent_font_size: parent_state.font_size,
-                                    viewport: state.viewport,
-                                    dpi: state.dpi,
-                                    auto: 0.0,
+                                    reference_size: parent_state.height,
+                                    ..context
                                 }),
                         );
                     }
@@ -312,12 +313,8 @@ impl Rectangle {
                         x = x.max(
                             state.scroll.0
                                 + val.to_px(&Context {
-                                    root_font_size: state.root_font_size,
-                                    parent_size: parent_state.width,
-                                    parent_font_size: parent_state.font_size,
-                                    viewport: state.viewport,
-                                    dpi: state.dpi,
-                                    auto: 0.0,
+                                    reference_size: parent_state.width,
+                                    ..context
                                 }),
                         );
                     }
@@ -325,12 +322,8 @@ impl Rectangle {
                         y = (state.viewport.1).max(
                             state.scroll.1
                                 + val.to_px(&Context {
-                                    root_font_size: state.root_font_size,
-                                    parent_size: parent_state.height,
-                                    parent_font_size: parent_state.font_size,
-                                    viewport: state.viewport,
-                                    dpi: state.dpi,
-                                    auto: 0.0,
+                                    reference_size: parent_state.height,
+                                    ..context
                                 }),
                         );
                     }
@@ -340,21 +333,13 @@ impl Rectangle {
             Position::Relative => {
                 x = self.x
                     + self.style.top.to_px(&Context {
-                        root_font_size: state.root_font_size,
-                        parent_size: parent_state.width,
-                        parent_font_size: parent_state.font_size,
-                        viewport: state.viewport,
-                        dpi: state.dpi,
-                        auto: 0.0,
+                        reference_size: parent_state.width,
+                        ..context
                     });
                 y = self.y
                     + self.style.left.to_px(&Context {
-                        root_font_size: state.root_font_size,
-                        parent_size: parent_state.height,
-                        parent_font_size: parent_state.font_size,
-                        viewport: state.viewport,
-                        dpi: state.dpi,
-                        auto: 0.0,
+                        reference_size: parent_state.height,
+                        ..context
                     });
             }
             _ => {}

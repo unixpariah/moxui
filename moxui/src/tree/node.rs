@@ -9,6 +9,12 @@ use super::{
     State,
 };
 
+#[derive(Clone, Copy)]
+struct Dimensions {
+    width: f32,
+    height: f32,
+}
+
 pub struct ParentState {
     pub x: f32,
     pub y: f32,
@@ -69,42 +75,34 @@ impl Node {
         }
     }
 
-    fn update_layout_properties(&mut self, parent_state: &ParentState, state: &State) {
-        let context = Context {
+    fn compute_static_properties(&mut self, parent_state: &ParentState, state: &State) {
+        let box_context = Context {
             root_font_size: state.root_font_size,
-            parent_size: parent_state.width,
+            reference_size: parent_state.width,
             viewport: state.viewport,
             dpi: state.dpi,
             parent_font_size: parent_state.font_size,
             auto: 0.0,
         };
 
-        self.outline.width = self.style.outline_width.to_px(&context);
-        self.outline.offset = self.style.outline_offset.to_px(&context);
+        self.outline.width = self.style.outline_width.to_px(&box_context);
+        self.outline.offset = self.style.outline_offset.to_px(&box_context);
 
         (0..4).for_each(|i| {
-            self.padding[i] = self.style.padding[i].to_px(&context);
-            self.border.size[i] = self.style.border_size[i].to_px(&context);
-            self.border.radius[i] = self.style.border_radius[i].to_px(&context);
-            self.margin[i] = self.style.margin[i].to_px(&context);
+            self.padding[i] = self.style.padding[i].to_px(&box_context);
+            self.border.size[i] = self.style.border_size[i].to_px(&box_context);
+            self.border.radius[i] = self.style.border_radius[i].to_px(&box_context);
+            self.margin[i] = self.style.margin[i].to_px(&box_context);
         });
 
         self.font_size = self.style.font_size.to_px(&Context {
-            root_font_size: state.root_font_size,
-            parent_size: parent_state.font_size,
-            parent_font_size: parent_state.font_size,
-            viewport: state.viewport,
-            dpi: state.dpi,
-            auto: 0.0,
+            reference_size: parent_state.font_size,
+            ..box_context
         });
 
         self.line_height = self.style.line_height.to_px(&Context {
-            root_font_size: state.root_font_size,
-            parent_size: self.font_size,
-            parent_font_size: parent_state.font_size,
-            viewport: state.viewport,
-            dpi: state.dpi,
-            auto: 0.0,
+            reference_size: self.font_size,
+            ..box_context
         });
 
         let font_size = self.font_size;
@@ -115,52 +113,88 @@ impl Node {
                 glyphon::Metrics::new(font_size, line_height),
             );
         }
+
+        let parent_state = self.get_state();
+
+        self.children
+            .iter_mut()
+            .for_each(|child| child.compute_static_properties(&parent_state, state));
+    }
+
+    pub fn compute_layout(&mut self, state: &State) -> (f32, f32) {
+        let parent_state = self.get_state();
+        self.compute_static_properties(&parent_state, state);
+
+        let mut current_pos = Dimensions {
+            width: 0.0,
+            height: 0.0,
+        };
+        let mut total_size = Dimensions {
+            width: 0.0,
+            height: 0.0,
+        };
+
+        collect_children(&mut self.children)
+            .iter_mut()
+            .for_each(|child| {
+                child.resolve_sizes(&parent_state, state, &mut current_pos, &mut total_size);
+                child.update_position(&parent_state, state, current_pos);
+                child.apply_auto(&parent_state, state, current_pos);
+            });
+
+        (total_size.width, total_size.height)
     }
 
     fn update_position(
         &mut self,
         parent_state: &ParentState,
         state: &State,
-        current_pos: (f32, f32),
+        current_pos: Dimensions,
     ) {
         (self.x, self.y) = match (self.style.position, self.style.display) {
             (_, Display::None | Display::Contents) => return,
             (Position::Static | Position::Sticky | Position::Relative, Display::Block) => {
-                (0.0, current_pos.1 - self.height)
+                (0.0, current_pos.height - self.height)
             }
             (
                 Position::Static | Position::Sticky | Position::Relative,
                 Display::Inline | Display::InlineBlock,
             ) => {
                 if self.x + self.get_extents(state).width > parent_state.x + parent_state.width {
-                    (0.0, current_pos.1 - self.height)
+                    (0.0, current_pos.height - self.height)
                 } else {
-                    (current_pos.0 - self.width, current_pos.1 - self.height)
+                    (
+                        current_pos.width - self.width,
+                        current_pos.height - self.height,
+                    )
                 }
             }
             (Position::Fixed | Position::Absolute, _) => {
-                let hor_context = Context {
+                let context = Context {
                     root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
                     parent_font_size: parent_state.font_size,
                     viewport: state.viewport,
                     dpi: state.dpi,
+                    reference_size: 0.0,
                     auto: 0.0,
                 };
 
-                let vert_context = Context {
-                    root_font_size: state.root_font_size,
-                    parent_size: parent_state.height,
-                    parent_font_size: parent_state.font_size,
-                    viewport: state.viewport,
-                    dpi: state.dpi,
-                    auto: 0.0,
-                };
-
-                let top = self.style.top.to_px(&vert_context);
-                let left = self.style.left.to_px(&hor_context);
-                let bottom = self.style.bottom.to_px(&vert_context);
-                let right = self.style.right.to_px(&hor_context);
+                let top = self.style.top.to_px(&Context {
+                    reference_size: parent_state.height,
+                    ..context
+                });
+                let left = self.style.left.to_px(&Context {
+                    reference_size: parent_state.width,
+                    ..context
+                });
+                let bottom = self.style.bottom.to_px(&Context {
+                    reference_size: parent_state.height,
+                    ..context
+                });
+                let right = self.style.right.to_px(&Context {
+                    reference_size: parent_state.width,
+                    ..context
+                });
 
                 let extents = self.get_extents(state);
 
@@ -169,7 +203,7 @@ impl Node {
                 } else if !self.style.right.is_auto() {
                     extents.width - right
                 } else {
-                    current_pos.0
+                    current_pos.width
                 };
 
                 let y = if !self.style.top.is_auto() {
@@ -177,7 +211,7 @@ impl Node {
                 } else if !self.style.bottom.is_auto() {
                     bottom - extents.height
                 } else {
-                    current_pos.1
+                    current_pos.height
                 };
 
                 (x, y)
@@ -185,7 +219,7 @@ impl Node {
         }
     }
 
-    fn apply_auto(&mut self, parent_state: &ParentState, state: &State, current_pos: (f32, f32)) {
+    fn apply_auto(&mut self, parent_state: &ParentState, state: &State, current_pos: Dimensions) {
         let extents = self.get_extents(state);
         let width = self.width
             + self.padding[3]
@@ -195,19 +229,11 @@ impl Node {
             + self.margin[3]
             + self.margin[1];
 
-        let height = self.height
-            + self.padding[0]
-            + self.padding[2]
-            + self.border.size[0]
-            + self.border.size[2]
-            + self.margin[0]
-            + self.margin[2];
-
         match (&self.style.margin[1], &self.style.margin[3]) {
             (Units::Auto, Units::Auto) => {
                 let margin_context = Context {
                     root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
+                    reference_size: parent_state.width,
                     viewport: state.viewport,
                     dpi: state.dpi,
                     parent_font_size: parent_state.font_size,
@@ -222,7 +248,7 @@ impl Node {
 
                 let margin_context = Context {
                     root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
+                    reference_size: parent_state.width,
                     viewport: state.viewport,
                     dpi: state.dpi,
                     parent_font_size: parent_state.font_size,
@@ -236,7 +262,7 @@ impl Node {
 
                 let margin_context = Context {
                     root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
+                    reference_size: parent_state.width,
                     viewport: state.viewport,
                     dpi: state.dpi,
                     parent_font_size: parent_state.font_size,
@@ -252,11 +278,11 @@ impl Node {
             (Units::Auto, Units::Auto) => {
                 let margin_context = Context {
                     root_font_size: state.root_font_size,
-                    parent_size: parent_state.height,
+                    reference_size: parent_state.height,
                     viewport: state.viewport,
                     dpi: state.dpi,
                     parent_font_size: parent_state.font_size,
-                    auto: (parent_state.height - current_pos.1) / 2.0,
+                    auto: (parent_state.height - current_pos.height) / 2.0,
                 };
 
                 self.margin[0] = self.style.margin[0].to_px(&margin_context);
@@ -265,11 +291,11 @@ impl Node {
             (Units::Auto, _) => {
                 let margin_context = Context {
                     root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
+                    reference_size: parent_state.width,
                     viewport: state.viewport,
                     dpi: state.dpi,
                     parent_font_size: parent_state.font_size,
-                    auto: parent_state.height - current_pos.1,
+                    auto: parent_state.height - current_pos.height,
                 };
 
                 self.margin[0] = self.style.margin[0].to_px(&margin_context);
@@ -277,11 +303,11 @@ impl Node {
             (_, Units::Auto) => {
                 let margin_context = Context {
                     root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
+                    reference_size: parent_state.width,
                     viewport: state.viewport,
                     dpi: state.dpi,
                     parent_font_size: parent_state.font_size,
-                    auto: parent_state.height - current_pos.1,
+                    auto: parent_state.height - current_pos.height,
                 };
 
                 self.margin[2] = self.style.margin[2].to_px(&margin_context);
@@ -290,111 +316,90 @@ impl Node {
         }
     }
 
-    fn update_size(
+    fn resolve_sizes(
         &mut self,
         parent_state: &ParentState,
         state: &State,
-        current_pos: &mut (f32, f32),
-        total_size: &mut (f32, f32),
+        current_pos: &mut Dimensions,
+        total_size: &mut Dimensions,
     ) {
         let (width, height) = match &self.text {
             None => (0.0, 0.0),
             Some(text) => text.extents(),
         };
 
+        let context = Context {
+            root_font_size: state.root_font_size,
+            parent_font_size: parent_state.font_size,
+            viewport: state.viewport,
+            dpi: state.dpi,
+            reference_size: 0.0,
+            auto: 0.0,
+        };
+
         match self.style.display {
             rectangle::Display::Block => {
                 self.width = self.style.width(&Context {
-                    root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
-                    parent_font_size: parent_state.font_size,
-                    viewport: state.viewport,
-                    dpi: state.dpi,
+                    reference_size: parent_state.width,
                     auto: parent_state.width,
+                    ..context
                 });
-                let auto = self.position_children(state).1.max(height);
+                let auto = self.compute_layout(state).1.max(height);
                 self.height = self.style.height(&Context {
-                    root_font_size: state.root_font_size,
-                    parent_size: parent_state.height,
-                    parent_font_size: parent_state.font_size,
-                    viewport: state.viewport,
-                    dpi: state.dpi,
+                    reference_size: parent_state.height,
                     auto,
+                    ..context
                 });
 
                 let self_extents = self.get_extents(state);
-                current_pos.0 = 0.0;
-                current_pos.1 += self_extents.height;
-                total_size.0 = self_extents.width.max(total_size.0);
-                total_size.1 = current_pos.1.max(total_size.1);
+                current_pos.width = 0.0;
+                current_pos.height += self_extents.height;
+                total_size.width = self_extents.width.max(total_size.width);
+                total_size.height = current_pos.height.max(total_size.height);
             }
             rectangle::Display::Inline => {
-                (self.width, self.height) = self.position_children(state);
+                (self.width, self.height) = self.compute_layout(state);
 
                 let self_extents = self.get_extents(state);
 
-                current_pos.0 += self_extents.width;
-                total_size.0 = current_pos.0.max(total_size.0);
-                total_size.1 = (current_pos.1 + self_extents.height).max(total_size.1);
+                current_pos.width += self_extents.width;
+                total_size.width = current_pos.width.max(total_size.width);
+                total_size.height =
+                    (current_pos.height + self_extents.height).max(total_size.height);
             }
             rectangle::Display::InlineBlock => {
-                let auto = self.position_children(state);
+                let auto = self.compute_layout(state);
                 self.width = self.style.width(&Context {
-                    root_font_size: state.root_font_size,
-                    parent_size: parent_state.width,
-                    parent_font_size: parent_state.font_size,
-                    viewport: state.viewport,
-                    dpi: state.dpi,
+                    reference_size: parent_state.width,
                     auto: auto.0.max(width),
+                    ..context
                 });
                 self.height = self.style.height(&Context {
-                    root_font_size: state.root_font_size,
-                    parent_size: parent_state.height,
-                    parent_font_size: parent_state.font_size,
-                    viewport: state.viewport,
-                    dpi: state.dpi,
+                    reference_size: parent_state.height,
                     auto: auto.1.max(height),
+                    ..context
                 });
 
                 let self_extents = self.get_extents(state);
 
-                current_pos.0 += self_extents.width;
-                total_size.0 = current_pos.0.max(total_size.0);
-                total_size.1 = (current_pos.1 + self_extents.height).max(total_size.1);
+                current_pos.width += self_extents.width;
+                total_size.width = current_pos.width.max(total_size.width);
+                total_size.height =
+                    (current_pos.height + self_extents.height).max(total_size.height);
             }
             _ => {}
         }
     }
 
-    fn offset_children(&mut self) {
-        let x = self.x + (self.margin[3] + self.padding[3] + self.border.size[3]) / 2.0;
-        let y = self.y + (self.margin[0] + self.padding[0] + self.border.size[0]) / 2.0;
+    pub fn offset_children(&mut self) {
+        let x = self.x + self.margin[3] + self.padding[3] + self.border.size[3];
+        let y = self.y + self.margin[0] + self.padding[0] + self.border.size[0];
 
         self.children.iter_mut().for_each(|child| {
             child.x += x;
             child.y += y;
             child.offset_children();
         });
-    }
-
-    pub fn position_children(&mut self, state: &State) -> (f32, f32) {
-        let mut current_pos = (0.0, 0.0);
-        let mut total_size = (0.0, 0.0);
-
-        let parent_state = self.get_state();
-
-        collect_children(&mut self.children)
-            .iter_mut()
-            .for_each(|child| {
-                child.update_layout_properties(&parent_state, state);
-                child.update_size(&parent_state, state, &mut current_pos, &mut total_size);
-                child.update_position(&parent_state, state, current_pos);
-                child.apply_auto(&parent_state, state, current_pos);
-            });
-
-        self.offset_children();
-
-        (total_size.0, total_size.1)
     }
 
     pub fn add_child<F>(mut self, f: F) -> Self

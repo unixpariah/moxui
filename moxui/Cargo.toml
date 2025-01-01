@@ -10,6 +10,8 @@ calc_units = { version = "0.1.0", path = "../calc_units" }
 env_logger = "0.11.5"
 glyphon = "0.7.0"
 wgpu = "23.0.0"
+cssparser = { version = "0.33.0", features = ["dummy_match_byte"] }
+lightningcss = { version = "1.0.0-alpha.61", features = ["visitor"] }
 
 [dev-dependencies]
 pollster = "0.4.0"

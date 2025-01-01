@@ -220,24 +220,29 @@ impl Tree {
 
     pub fn finish(mut self) -> Self {
         let state = self.state.clone();
-        let auto = self.position_children(&state);
+        let auto = self.compute_layout(&state);
+
+        let context = Context {
+            root_font_size: self.state.root_font_size,
+            dpi: self.state.dpi,
+            parent_font_size: self.state.root_font_size,
+            viewport: self.state.viewport,
+            reference_size: 0.0,
+            auto: 0.0,
+        };
 
         self.width = self.style.width(&Context {
-            root_font_size: self.state.root_font_size,
-            parent_size: self.state.viewport.0,
-            dpi: self.state.dpi,
             auto: auto.0,
-            parent_font_size: self.state.root_font_size,
-            viewport: self.state.viewport,
+            reference_size: state.viewport.0,
+            ..context
         });
         self.height = self.style.height(&Context {
-            root_font_size: self.state.root_font_size,
-            parent_size: self.state.viewport.1,
-            dpi: self.state.dpi,
             auto: auto.1,
-            parent_font_size: self.state.root_font_size,
-            viewport: self.state.viewport,
+            reference_size: state.viewport.1,
+            ..context
         });
+
+        self.offset_children();
 
         self
     }
