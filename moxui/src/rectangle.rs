@@ -88,8 +88,6 @@ pub struct Style {
     pub left: Units,
     pub position: Position,
     pub display: Display,
-    pub width: Units,
-    pub height: Units,
     pub margin: [Units; 4],
     pub padding: [Units; 4],
     pub border_size: [Units; 4],
@@ -101,8 +99,50 @@ pub struct Style {
     pub font_size: Units,
     pub line_height: Units,
     pub font_family: FamilyOwned,
+    pub height: Units,
+    pub width: Units,
     pub max_width: Units,
     pub max_height: Units,
+    pub min_width: Units,
+    pub min_height: Units,
+}
+
+impl Style {
+    pub fn height(&self, context: &Context) -> f32 {
+        let min_context = Context {
+            auto: 0.0,
+            ..*context
+        };
+
+        let height = self.height.to_px(context);
+
+        let max_context = Context {
+            auto: height,
+            ..*context
+        };
+
+        height
+            .max(self.min_height.to_px(&min_context))
+            .min(self.max_height.to_px(&max_context))
+    }
+
+    pub fn width(&self, context: &Context) -> f32 {
+        let min_context = Context {
+            auto: 0.0,
+            ..*context
+        };
+
+        let width = self.width.to_px(context);
+
+        let max_context = Context {
+            auto: width,
+            ..*context
+        };
+
+        width
+            .max(self.min_width.to_px(&min_context))
+            .min(self.max_width.to_px(&max_context))
+    }
 }
 
 impl Default for Style {
@@ -129,6 +169,8 @@ impl Default for Style {
             font_family: FamilyOwned::Serif,
             max_width: Units::Auto,
             max_height: Units::Auto,
+            min_width: Units::Auto,
+            min_height: Units::Auto,
         }
     }
 }

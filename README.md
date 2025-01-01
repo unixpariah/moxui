@@ -24,14 +24,14 @@
   - [ ] Others
 
 ## Box Model
-- [ ] Width
+- [x] Width
   - [x] `width`
-  - [ ] `min-width`
-  - [ ] `max-width`
-- [ ] Height
+  - [x] `min-width`
+  - [x] `max-width`
+- [x] Height
   - [x] `height`
-  - [ ] `min-height`
-  - [ ] `max-height`
+  - [x] `min-height`
+  - [x] `max-height`
 - [x] Padding
 - [x] Margin
 - [ ] Borders

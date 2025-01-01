@@ -222,7 +222,7 @@ impl Tree {
         let state = self.state.clone();
         let auto = self.position_children(&state);
 
-        self.width = self.style.width.to_px(&Context {
+        self.width = self.style.width(&Context {
             root_font_size: self.state.root_font_size,
             parent_size: self.state.viewport.0,
             dpi: self.state.dpi,
@@ -230,7 +230,7 @@ impl Tree {
             parent_font_size: self.state.root_font_size,
             viewport: self.state.viewport,
         });
-        self.height = self.style.height.to_px(&Context {
+        self.height = self.style.height(&Context {
             root_font_size: self.state.root_font_size,
             parent_size: self.state.viewport.1,
             dpi: self.state.dpi,

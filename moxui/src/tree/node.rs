@@ -169,7 +169,7 @@ impl Node {
                 } else if !self.style.right.is_auto() {
                     extents.width - right
                 } else {
-                    0.0
+                    current_pos.0
                 };
 
                 let y = if !self.style.top.is_auto() {
@@ -177,7 +177,7 @@ impl Node {
                 } else if !self.style.bottom.is_auto() {
                     bottom - extents.height
                 } else {
-                    0.0
+                    current_pos.1
                 };
 
                 (x, y)
@@ -304,7 +304,7 @@ impl Node {
 
         match self.style.display {
             rectangle::Display::Block => {
-                self.width = self.style.width.to_px(&Context {
+                self.width = self.style.width(&Context {
                     root_font_size: state.root_font_size,
                     parent_size: parent_state.width,
                     parent_font_size: parent_state.font_size,
@@ -313,7 +313,7 @@ impl Node {
                     auto: parent_state.width,
                 });
                 let auto = self.position_children(state).1.max(height);
-                self.height = self.style.height.to_px(&Context {
+                self.height = self.style.height(&Context {
                     root_font_size: state.root_font_size,
                     parent_size: parent_state.height,
                     parent_font_size: parent_state.font_size,
@@ -339,7 +339,7 @@ impl Node {
             }
             rectangle::Display::InlineBlock => {
                 let auto = self.position_children(state);
-                self.width = self.style.width.to_px(&Context {
+                self.width = self.style.width(&Context {
                     root_font_size: state.root_font_size,
                     parent_size: parent_state.width,
                     parent_font_size: parent_state.font_size,
@@ -347,7 +347,7 @@ impl Node {
                     dpi: state.dpi,
                     auto: auto.0.max(width),
                 });
-                self.height = self.style.height.to_px(&Context {
+                self.height = self.style.height(&Context {
                     root_font_size: state.root_font_size,
                     parent_size: parent_state.height,
                     parent_font_size: parent_state.font_size,
@@ -513,6 +513,12 @@ impl Node {
     pub fn set_max_size(mut self, max_width: Units, max_height: Units) -> Self {
         self.style.max_width = max_width;
         self.style.max_height = max_height;
+        self
+    }
+
+    pub fn set_min_size(mut self, min_width: Units, min_height: Units) -> Self {
+        self.style.min_width = min_width;
+        self.style.min_height = min_height;
         self
     }
 
