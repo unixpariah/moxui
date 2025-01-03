@@ -198,8 +198,8 @@ pub struct Rectangle {
     pub style: Style,
 }
 
-impl Rectangle {
-    pub fn new() -> Self {
+impl Default for Rectangle {
+    fn default() -> Self {
         Self {
             x: 0.0,
             y: 0.0,
@@ -225,6 +225,172 @@ impl Rectangle {
             line_height: 16.0 * 1.2,
 
             style: Style::default(),
+        }
+    }
+}
+
+impl Rectangle {
+    pub fn get_render_extents(&self, parent_state: &ParentState, state: &State) -> Extents {
+        let context = Context {
+            root_font_size: state.root_font_size,
+            dpi: state.dpi,
+            viewport: state.viewport,
+            parent_font_size: parent_state.font_size,
+            reference_size: 0.0,
+            auto: 0.0,
+        };
+
+        let x =
+            self.x + self.margin[3] - self.outline.width - self.outline.offset + self.translate[0];
+        let y =
+            self.y + self.margin[0] - self.outline.width - self.outline.offset + self.translate[1];
+
+        let (x, y) = match self.style.position {
+            Position::Fixed => (x + state.scroll.0, y + state.scroll.1),
+            Position::Sticky => {
+                match (
+                    &self.style.top,
+                    &self.style.right,
+                    &self.style.bottom,
+                    &self.style.left,
+                ) {
+                    (val, Units::Auto, Units::Auto, Units::Auto) => (
+                        x,
+                        y.max(
+                            state.scroll.1
+                                + val.to_px(&Context {
+                                    reference_size: parent_state.height,
+                                    ..context
+                                }),
+                        ),
+                    ),
+                    (Units::Auto, Units::Auto, Units::Auto, val) => (
+                        x.max(
+                            state.scroll.0
+                                + val.to_px(&Context {
+                                    reference_size: parent_state.width,
+                                    ..context
+                                }),
+                        ),
+                        y,
+                    ),
+                    (Units::Auto, Units::Auto, val, Units::Auto) => (
+                        x,
+                        (state.viewport.1 - parent_state.height).min(
+                            state.scroll.1
+                                + val.to_px(&Context {
+                                    reference_size: parent_state.height,
+                                    ..context
+                                }),
+                        ),
+                    ),
+                    (Units::Auto, val, Units::Auto, Units::Auto) => (
+                        (state.viewport.0 - parent_state.width).min(
+                            state.scroll.0
+                                + val.to_px(&Context {
+                                    reference_size: parent_state.width,
+                                    ..context
+                                }),
+                        ),
+                        y,
+                    ),
+                    (top, Units::Auto, Units::Auto, left) => (
+                        x.max(
+                            state.scroll.0
+                                + left.to_px(&Context {
+                                    reference_size: parent_state.width,
+                                    ..context
+                                }),
+                        ),
+                        y.max(
+                            state.scroll.1
+                                + top.to_px(&Context {
+                                    reference_size: parent_state.height,
+                                    ..context
+                                }),
+                        ),
+                    ),
+                    (top, right, Units::Auto, Units::Auto) => (
+                        (state.viewport.0 - parent_state.width).min(
+                            state.scroll.0
+                                + right.to_px(&Context {
+                                    reference_size: parent_state.width,
+                                    ..context
+                                }),
+                        ),
+                        y.max(
+                            state.scroll.1
+                                + top.to_px(&Context {
+                                    reference_size: parent_state.height,
+                                    ..context
+                                }),
+                        ),
+                    ),
+                    (Units::Auto, Units::Auto, bottom, left) => (
+                        x.max(
+                            state.scroll.0
+                                + left.to_px(&Context {
+                                    reference_size: parent_state.width,
+                                    ..context
+                                }),
+                        ),
+                        (state.viewport.1 - parent_state.height).min(
+                            state.scroll.1
+                                + bottom.to_px(&Context {
+                                    reference_size: parent_state.height,
+                                    ..context
+                                }),
+                        ),
+                    ),
+                    (Units::Auto, right, bottom, Units::Auto) => (
+                        (state.viewport.0 - parent_state.width).min(
+                            state.scroll.0
+                                + right.to_px(&Context {
+                                    reference_size: parent_state.width,
+                                    ..context
+                                }),
+                        ),
+                        (state.viewport.1 - parent_state.height).min(
+                            state.scroll.1
+                                + bottom.to_px(&Context {
+                                    reference_size: parent_state.height,
+                                    ..context
+                                }),
+                        ),
+                    ),
+                    _ => (x, y),
+                }
+            }
+            Position::Relative => (
+                x + self.style.top.to_px(&context),
+                y + self.style.left.to_px(&context),
+            ),
+            Position::Static | Position::Absolute => (x, y),
+        };
+
+        let (width, height) = match self.style.box_sizing {
+            BoxSizing::ContentBox => (
+                self.width
+                    + self.padding[3]
+                    + self.padding[1]
+                    + self.border.size[3]
+                    + self.border.size[1]
+                    + (self.outline.width + self.outline.offset) * 2.0,
+                self.height
+                    + self.padding[0]
+                    + self.padding[2]
+                    + self.border.size[0]
+                    + self.border.size[2]
+                    + (self.outline.width + self.outline.offset) * 2.0,
+            ),
+            BoxSizing::BorderBox => (self.width, self.height),
+        };
+
+        Extents {
+            x,
+            y,
+            width,
+            height,
         }
     }
 
@@ -276,92 +442,11 @@ impl Rectangle {
     }
 
     pub fn get_instance_data(&self, parent_state: &ParentState, state: &State) -> InstanceData {
-        let extents = self.get_extents(state);
-
-        let mut x = extents.x + self.margin[3] - self.outline.width - self.outline.offset
-            + self.translate[0];
-        let mut y = extents.y + self.margin[0] - self.outline.width - self.outline.offset
-            + self.translate[1];
-
-        let context = Context {
-            root_font_size: state.root_font_size,
-            parent_font_size: parent_state.font_size,
-            viewport: state.viewport,
-            dpi: state.dpi,
-            reference_size: 0.0,
-            auto: 0.0,
-        };
-
-        match self.style.position {
-            Position::Sticky => {
-                match (
-                    &self.style.top,
-                    &self.style.right,
-                    &self.style.bottom,
-                    &self.style.left,
-                ) {
-                    (val, Units::Auto, Units::Auto, Units::Auto) => {
-                        y = y.max(
-                            state.scroll.1
-                                + val.to_px(&Context {
-                                    reference_size: parent_state.height,
-                                    ..context
-                                }),
-                        );
-                    }
-                    (Units::Auto, Units::Auto, Units::Auto, val) => {
-                        x = x.max(
-                            state.scroll.0
-                                + val.to_px(&Context {
-                                    reference_size: parent_state.width,
-                                    ..context
-                                }),
-                        );
-                    }
-                    (Units::Auto, Units::Auto, val, Units::Auto) => {
-                        y = (state.viewport.1).max(
-                            state.scroll.1
-                                + val.to_px(&Context {
-                                    reference_size: parent_state.height,
-                                    ..context
-                                }),
-                        );
-                    }
-                    _ => {}
-                }
-            }
-            Position::Relative => {
-                x = self.x
-                    + self.style.top.to_px(&Context {
-                        reference_size: parent_state.width,
-                        ..context
-                    });
-                y = self.y
-                    + self.style.left.to_px(&Context {
-                        reference_size: parent_state.height,
-                        ..context
-                    });
-            }
-            _ => {}
-        }
-
-        let width = self.width
-            + self.padding[3]
-            + self.padding[1]
-            + self.border.size[3]
-            + self.border.size[1]
-            + (self.outline.width + self.outline.offset) * 2.0;
-
-        let height = self.height
-            + self.padding[0]
-            + self.padding[2]
-            + self.border.size[0]
-            + self.border.size[2]
-            + (self.outline.width + self.outline.offset) * 2.0;
+        let extents = self.get_render_extents(parent_state, state);
 
         InstanceData {
-            rect_pos: [x, y],
-            rect_size: [width, height],
+            rect_pos: [extents.x, extents.y],
+            rect_size: [extents.width, extents.height],
 
             outline_width: self.outline.width,
             outline_offset: self.outline.offset,

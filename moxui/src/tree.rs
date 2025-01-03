@@ -46,7 +46,7 @@ impl Tree {
             dpi: config.dpi,
         };
 
-        let mut node = node::Node::new();
+        let mut node = node::Node::default();
         node.style.width = Units::Perc(100.0);
         let node = f(node);
 
@@ -220,6 +220,17 @@ impl Tree {
 
     pub fn finish(mut self) -> Self {
         let state = self.state.clone();
+
+        self.compute_static_properties(
+            &node::ParentState {
+                x: 0.0,
+                y: 0.0,
+                width: state.viewport.0,
+                height: state.viewport.1,
+                font_size: state.root_font_size,
+            },
+            &state,
+        );
         let auto = self.compute_layout(&state);
 
         let context = Context {

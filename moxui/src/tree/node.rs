@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::rectangle::{self, Display, InstanceData, Position};
+use crate::rectangle::{BoxSizing, Display, InstanceData, Position, Rectangle};
 use calc_units::{Context, Units};
 use glyphon::{Attrs, Color, FamilyOwned, FontSystem};
 
@@ -23,14 +23,15 @@ pub struct ParentState {
     pub font_size: f32,
 }
 
+#[derive(Default)]
 pub struct Node {
     pub children: Vec<Node>,
-    pub data: rectangle::Rectangle,
+    pub data: Rectangle,
     pub text: Option<Text>,
 }
 
 impl Deref for Node {
-    type Target = rectangle::Rectangle;
+    type Target = Rectangle;
     fn deref(&self) -> &Self::Target {
         &self.data
     }
@@ -47,7 +48,7 @@ pub fn collect_children(children: &mut [Node]) -> Vec<&mut Node> {
     children
         .iter_mut()
         .flat_map(|child| {
-            if child.style.display == rectangle::Display::Contents {
+            if child.style.display == Display::Contents {
                 collect_children(&mut child.children)
             } else {
                 vec![child]
@@ -57,14 +58,6 @@ pub fn collect_children(children: &mut [Node]) -> Vec<&mut Node> {
 }
 
 impl Node {
-    pub fn new() -> Self {
-        Self {
-            data: rectangle::Rectangle::new(),
-            children: Vec::new(),
-            text: None,
-        }
-    }
-
     pub fn get_state(&self) -> ParentState {
         ParentState {
             x: self.x,
@@ -75,7 +68,7 @@ impl Node {
         }
     }
 
-    fn compute_static_properties(&mut self, parent_state: &ParentState, state: &State) {
+    pub fn compute_static_properties(&mut self, parent_state: &ParentState, state: &State) {
         let box_context = Context {
             root_font_size: state.root_font_size,
             reference_size: parent_state.width,
@@ -123,7 +116,6 @@ impl Node {
 
     pub fn compute_layout(&mut self, state: &State) -> (f32, f32) {
         let parent_state = self.get_state();
-        self.compute_static_properties(&parent_state, state);
 
         let mut current_pos = Dimensions {
             width: 0.0,
@@ -338,7 +330,7 @@ impl Node {
         };
 
         match self.style.display {
-            rectangle::Display::Block => {
+            Display::Block => {
                 self.width = self.style.width(&Context {
                     reference_size: parent_state.width,
                     auto: parent_state.width,
@@ -357,7 +349,7 @@ impl Node {
                 total_size.width = self_extents.width.max(total_size.width);
                 total_size.height = current_pos.height.max(total_size.height);
             }
-            rectangle::Display::Inline => {
+            Display::Inline => {
                 (self.width, self.height) = self.compute_layout(state);
 
                 let self_extents = self.get_extents(state);
@@ -367,7 +359,7 @@ impl Node {
                 total_size.height =
                     (current_pos.height + self_extents.height).max(total_size.height);
             }
-            rectangle::Display::InlineBlock => {
+            Display::InlineBlock => {
                 let auto = self.compute_layout(state);
                 self.width = self.style.width(&Context {
                     reference_size: parent_state.width,
@@ -406,7 +398,7 @@ impl Node {
     where
         F: Fn(Node) -> Node,
     {
-        let node = f(Node::new());
+        let node = f(Node::default());
         self.children.push(node);
 
         self
@@ -419,11 +411,11 @@ impl Node {
         parent_state: &ParentState,
         state: &State,
     ) {
-        if self.style.display == rectangle::Display::None {
+        if self.style.display == Display::None {
             return;
         }
 
-        if self.style.display != rectangle::Display::Contents {
+        if self.style.display != Display::Contents {
             instance_data.push(self.data.get_instance_data(parent_state, state));
             if let Some(text) = &self.text {
                 let (width, height) = text.extents();
@@ -499,12 +491,12 @@ impl Node {
         self
     }
 
-    pub fn set_position(mut self, position: rectangle::Position) -> Self {
+    pub fn set_position(mut self, position: Position) -> Self {
         self.style.position = position;
         self
     }
 
-    pub fn set_display(mut self, display: rectangle::Display) -> Self {
+    pub fn set_display(mut self, display: Display) -> Self {
         self.style.display = display;
         self
     }
@@ -527,14 +519,13 @@ impl Node {
         self
     }
 
-    pub fn set_box_sizing(mut self, box_sizing: rectangle::BoxSizing) -> Self {
+    pub fn set_box_sizing(mut self, box_sizing: BoxSizing) -> Self {
         self.style.box_sizing = box_sizing;
         self
     }
 
     pub fn set_padding(mut self, top: Units, right: Units, bottom: Units, left: Units) -> Self {
         self.style.padding = [top, right, bottom, left];
-
         self
     }
 
